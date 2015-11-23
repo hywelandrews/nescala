@@ -1,6 +1,5 @@
-/**
- * Created by Hywel on 4/22/15.
- */
+package nescala
+
 object Controller {
   val ButtonA = 0
   val ButtonB = 1
@@ -12,14 +11,15 @@ object Controller {
   val ButtonRight = 7
 }
 
-case class Controller(Buttons:Array[Boolean] = new Array[Boolean](8)) {
+case class Controller() {
+  var Buttons:Map[Int, Boolean] = Map.empty[Int, Boolean]
   var Index, Strobe:Int = 0
 
   def Read():Int = {
     var value:Int = 0
     if (Index < 8 && Buttons(Index)) value = 1
 
-    Index = Index + Index
+    Index = Index + 1
 
     if ((Strobe & 1) == 1) Index = 0
     value
@@ -29,4 +29,6 @@ case class Controller(Buttons:Array[Boolean] = new Array[Boolean](8)) {
     Strobe = value
     if ((Strobe & 1) == 1) Index = 0
   }
+
+  def SetButtons(buttons:Map[Int, Boolean]) = Buttons = buttons
 }

@@ -1,3 +1,5 @@
+package nescala
+
 import scala.language.postfixOps
 
 case class CPU(memory:CPUMemory) {
@@ -10,7 +12,7 @@ case class CPU(memory:CPUMemory) {
                           var y:Int = 0, var c:Int = 0, var z:Int = 0, var i:Int = 0, var d:Int = 0,
                           var b:Int = 0, var u:Int = 0, var v:Int = 0, var n:Int = 0)
 
-  private val initialProgramCounter:Int = 0xC000//memory.Read(0xFFFD) * 256 + memory.Read(0xFFFC)
+  private val initialProgramCounter:Int = memory.Read(0xFFFD) * 256 + memory.Read(0xFFFC)
   private val initialStackPointer:Int = 0xFD
   // mode: the address mode of instruction
   // size: indicates the size of each instruction in bytes
@@ -85,12 +87,12 @@ case class CPU(memory:CPUMemory) {
     Instruction("NOP", 2, 3, 4, 1, nop),  Instruction("SBC", 2, 3, 4, 1, sbc),  Instruction("INC", 2, 3, 7, 0, inc),  Instruction("ISC", 2, 3, 7, 0, isc)
   )
 
-  private var cycles:Int      = 0                 // number of cycles
-  private var interrupt:Byte  = interrupts.Empty  // interrupt type to perform
-  private var stall:Int       = 0                 // number of cycles to stall
-  private val registers       = new Registers()
+  private var cycles      = 0L                // number of cycles
+  private var interrupt   = interrupts.Empty  // interrupt type to perform
+  private var stall       = 0                 // number of cycles to stall
+  private val registers   = new Registers()
 
-  def Reset:Unit = {
+  def Reset():Unit = {
     memory.Write(0x4015, 0)
     memory.Write(0x4017, memory.Read(0x4017))
     //disable audio on reset
@@ -101,20 +103,25 @@ case class CPU(memory:CPUMemory) {
     registers.sp = initialStackPointer
   }
   // Step executes a single CPU instruction
-  def Step():Int = {
-    if (stall > 0) {
-      stall = stall - 1
-      return 1
-    }
-
+  def Step():Long = {
     if (memory.ppu.DMAStall) {
 
       stall += 513
 
       if (this.cycles % 2 == 1) {
-        stall += stall
+        stall += 1
       }
       memory.ppu.DMAStall = false
+    }
+
+    if(memory.apu.DMAStall) {
+      stall += 4
+      memory.apu.DMAStall = false
+    }
+
+    if (stall > 0) {
+      stall = stall - 1
+      return 1
     }
 
     val cycles = this.cycles
@@ -122,18 +129,18 @@ case class CPU(memory:CPUMemory) {
     interrupt match {
       case interrupts.NMI => nmi()
       case interrupts.IRQ => irq()
-      case interrupts.Empty => ()
+      case interrupts.Empty =>
     }
 
     interrupt = interrupts.Empty
 
-    val pc:Int = this.registers.pc
+    val pc:Int = registers.pc
     val opcode:Int = memory.Read(pc)
     val mode:Byte = instructions(opcode).mode
 
     val (address: Int, pageCrossed: Boolean) = getAddressWithPageCrossed(pc, mode)
 
-    this.registers.pc += instructions(opcode).size
+    registers.pc += instructions(opcode).size
     this.cycles += instructions(opcode).cycle
     if (pageCrossed) this.cycles += instructions(opcode).pageCycles
 
@@ -219,7 +226,7 @@ case class CPU(memory:CPUMemory) {
   // push pushes a byte onto the stack
   private def push(value:Int) = {
     memory.Write(0x100 | registers.sp, value)
-    registers.sp = registers.sp - 1
+    registers.sp = (registers.sp - 1) & 0xFF
   }
   // push16 pushes two bytes onto the stack
   private def push16(value:Int) = {
@@ -251,9 +258,9 @@ case class CPU(memory:CPUMemory) {
   // setZN sets the zero flag and the negative flag
   private def setZN(x:Int):Unit = { setZ(x); setN(x) }
   // triggerNMI causes a non-maskable interrupt to occur on the next cycle
-  def triggerNMI() = interrupt = interrupts.NMI
+  def triggerNMI = interrupt = interrupts.NMI
   // triggerIRQ causes an IRQ interrupt to occur on the next cycle
-  def triggerIRQ() = if (registers.i == 0) interrupt = interrupts.IRQ
+  def triggerIRQ = if (registers.i == 0) interrupt = interrupts.IRQ
 
   //address, pc, mode
   type Operation = (Int, Int, Byte) => Unit
@@ -288,18 +295,17 @@ case class CPU(memory:CPUMemory) {
     setZN(registers.a)
   }
   // ASL - Arithmetic Shift Left
-  private lazy val asl:Operation = { (address:Int, pc:Int, mode:Byte) =>
-    if (mode == addressModes.Accumulator) {
-      registers.c = registers.a >>> 7 & 1
-      registers.a = (registers.a << 1) & 0xFF
-      setZN(registers.a)
-    } else {
-      val initialValue = memory.Read(address)
-      registers.c = (initialValue >>> 7) & 1
-      val value = (initialValue << 1) & 0xFF
-      memory.Write(address, value)
-      setZN(value)
-    }
+  private lazy val asl:Operation = (address:Int, pc:Int, mode:Byte) => mode match {
+      case addressModes.Accumulator =>
+        registers.c = (registers.a >>> 7) & 1
+        registers.a = (registers.a << 1) & 0xFF
+        setZN(registers.a)
+      case other =>
+        val readValue = memory.Read(address)
+        registers.c = (readValue >>> 7) & 1
+        val writeValue = (readValue << 1) & 0xFF
+        memory.Write(address, writeValue)
+        setZN(writeValue)
   }
   // BCC - Branch if Carry Clear
   private lazy val bcc:Operation = (address:Int, pc:Int, mode:Byte) => addBranchCycles{ () => registers.c == 0 }(address, pc, mode)
@@ -456,12 +462,12 @@ case class CPU(memory:CPUMemory) {
     val c = registers.c
     if (mode == addressModes.Accumulator) {
       registers.c = registers.a & 1
-      registers.a = (registers.a >>> 1) | (c << 7)
+      registers.a = (registers.a >>> 1) | ((c << 7) & 0xFF)
       setZN(registers.a)
     } else {
       var value = memory.Read(address)
       registers.c = value & 1
-      value = (value >> 1) | (c << 7)
+      value = (value >> 1) | ((c << 7) & 0xFF)
       memory.Write(address, value)
       setZN(value)
     }
@@ -472,10 +478,8 @@ case class CPU(memory:CPUMemory) {
     registers.pc = pull16
   }
   // RTS - Return from Subroutine
-  private lazy val rts:Operation = (address:Int, pc:Int, mode:Byte) => {
-    val x = pull16
-    registers.pc = (x + 1) & 0xFFFF
-  }
+  private lazy val rts:Operation = (address:Int, pc:Int, mode:Byte) => registers.pc = (pull16 + 1) & 0xFFFF
+
   // SBC - Subtract with Carry
   private lazy val sbc:Operation = (address:Int, pc:Int, mode:Byte) => {
     val (a, b, c) = (registers.a, memory.Read(address), registers.c)

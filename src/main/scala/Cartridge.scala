@@ -1,3 +1,5 @@
+package nescala
+
 import java.io.FileInputStream
 
 import scala.util.{Failure, Try}
@@ -42,36 +44,32 @@ final case class Cartridge(private val path:String) {
 
   val Header = iNesHeader(byteArray.take(headerSize))
 
-  val Mapper = Header.Control1 >> 4 | Header.Control2 >> 4 << 1
+  val Mapper = Header.Control1 >> 4 | Header.Control2 >>> 4 << 1
 
-  val Mirror = Header.Control1 & 1  | (Header.Control1 >> 3 & 1) << 1
+  val Mirror = Header.Control1 & 1  | (Header.Control1 >>> 3 & 1) << 1
 
-  val Battery = Header.Control1 >> 1 & 1
+  val Battery = Header.Control1 >>> 1 & 1
 
   val HasTrainer = (Header.Control1 & 4) == 4
 
-  val Trainer = new Array[Int](trainerSize)
+  private var offset = headerSize
 
-  private var dropPosition = headerSize
+  val Trainer = if(HasTrainer) {
+    offset += trainerSize
+    byteArray.slice(offset, offset + trainerSize)
+  } else Array.fill(trainerSize){0}
 
-  if(HasTrainer) {
-    byteArray.slice(dropPosition, dropPosition + trainerSize).copyToArray(Trainer)
-    dropPosition += trainerSize
-  }
+  val PrgRom = byteArray.slice(offset, offset + Header.NumPRG * prgRomSize)
 
-  val PrgRom = byteArray.slice(dropPosition, dropPosition + Header.NumPRG * prgRomSize)
+  offset += (Header.NumPRG * prgRomSize)
 
-  dropPosition += (Header.NumPRG * prgRomSize)
-
-  val ChrRom = byteArray.slice(dropPosition, dropPosition + Header.NumCHR * chrRomSize)
-
-  if (Header.NumCHR == 0) new Array[Int](chrRomSize).copyToArray(ChrRom)
+  val ChrRom = if (Header.NumCHR == 0) Array.fill(chrRomSize){0}
+               else byteArray.slice(offset, offset + Header.NumCHR * chrRomSize)
 
   val SRam = new Array[Int](0x2000)
 
   override def toString =
-    s"""
-       |Mapper: $Mapper
+    s"""Mapper: $Mapper
        |Mirror: $Mirror
        |Battery: $Battery
     """.stripMargin

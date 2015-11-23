@@ -1,3 +1,4 @@
+package nescala
 
 
 object Palette {
@@ -10,12 +11,11 @@ object Palette {
         0xFFFEFF, 0xC0DFFF, 0xD3D2FF, 0xE8C8FF, 0xFBC2FF, 0xFEC4EA, 0xFECCC5, 0xF7D8A5, 0xE4E594, 0xCFEF96, 0xBDF4AB, 0xB3F3CC,
         0xB5EBF2, 0xB8B8B8, 0x000000, 0x000000)
 
-  val buildColor = (r:Int, g:Int, b:Int) => ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff) + 0xff000000
+  val buildColor = (r:Int, g:Int, b:Int) => ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)
 
-
-  val lookup = for {(i, c) <- color.zipWithIndex
-        r = (c >> 16) & 0xff
-        g = (c >> 8) & 0xff
-        b = c & 0xff
+  val lookup = for {c <- color
+        r = (c >> 16) & 0xFF
+        g = (c >> 8) & 0xFF
+        b = c & 0xFF
   } yield buildColor(r, g, b)
 }

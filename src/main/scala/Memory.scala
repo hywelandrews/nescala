@@ -1,6 +1,5 @@
-/**
- * Created by Hywel on 4/14/15.
- */
+package nescala
+
 trait Memory {
     def Read(address:Int):Int
     def Write(address:Int, value:Int)
@@ -35,28 +34,32 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
       case apuAddress if isApu2(address)  => apu.WriteRegister(apuAddress, value)
       case controller1Address if isController1(address)  => controller1.Write(value)
                                                             controller2.Write(value)
-      case apuAddress if address == 0x4017 => apu.WriteRegister(address, value)
+      case apuAddress if address == 0x4017 => apu.WriteRegister(apuAddress, value)
       //case ioAddress if address < 0x6000 => // TODO: I/O registers
       case mapperAddress if isMapper(address)  => mapper.Write(address, value)
       case default => System.err.println(s"Unhandled cpu memory write at address: ${Integer.toHexString(default)}")
     }
 }
 
-case class PPUMemory(cartridge:Cartridge, mapper:Mapper) extends Memory {
+trait PPUMemory extends Memory { self:PPU =>
+
+  val mapper:Mapper
+  val cartridge:Cartridge
+
   private val nameTableData = new Array[Int](2048)
   private val paletteData   = new Array[Int](32)
 
   override def Read(address: Int): Int = address % 0x4000 match {
-    case mapperAddress if address < 0x2000 => mapper.Read(mapperAddress)
-    case ppuNameTable if address < 0x3F00 => nameTableData(mirrorAddress(cartridge.Mirror, ppuNameTable) % 2048)
-    case ppuPalette if address < 0x4000 => ReadPalette(ppuPalette % 32)
+    case mapperAddress if mapperAddress < 0x2000 => mapper.Read(mapperAddress)
+    case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(cartridge.Mirror, ppuNameTable) % 2048)
+    case ppuPalette if ppuPalette < 0x4000 => ReadPalette(ppuPalette % 32)
     case default => System.err.println(s"unhandled ppu memory read at address: ${Integer.toHexString(default)}"); 0
   }
 
   override def Write(address: Int, value: Int) = address % 0x4000 match {
-      case mapperAddress if address < 0x2000 => mapper.Write(address, value)
-      case ppuNameTable if address < 0x3F00 => nameTableData(mirrorAddress(cartridge.Mirror, address) % 2048) = value
-      case ppuPalette if address < 0x4000 => WritePalette(address % 32, value)
+      case mapperAddress if mapperAddress < 0x2000 => mapper.Write(mapperAddress, value)
+      case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(cartridge.Mirror, ppuNameTable) % 2048) = value
+      case ppuPalette if ppuPalette < 0x4000 => WritePalette(ppuPalette % 32, value)
       case default => System.err.println(s"unhandled ppu memory write at address: ${Integer.toHexString(default)}")
   }
 
@@ -69,19 +72,20 @@ case class PPUMemory(cartridge:Cartridge, mapper:Mapper) extends Memory {
   )
 
   private def mirrorAddress(mode:Int, address:Int):Int = {
-    val mirrorAddress = (address - 0x2000) % 0x1000
+    val mirrorAddress = ((address - 0x2000) & 0xFFFF) % 0x1000
     val table = mirrorAddress / 0x0400
     val offset = mirrorAddress % 0x0400
-    0x2000 + mirrorLookup(mode)(table) * 0x0400 + offset
+    (0x2000 + mirrorLookup(mode)(table) * 0x0400 + offset) & 0xFFFF
   }
 
   def ReadPalette(address:Int):Int = {
-    if (!(address >= 16) || !(address % 4 == 0)) paletteData(address)
-    else paletteData(address - 16)
+    val paletteAddress = if ((address >= 16) && (address % 4 == 0)) (address - 16) & 0xFFFF
+                         else address
+    paletteData(paletteAddress)
   }
 
   def WritePalette(address:Int, value:Int) = {
-    if (!(address >= 16) || !(address % 4 == 0)) paletteData(address) = value
-    else paletteData(address - 16) = value
+    if ((address >= 16) && (address % 4 == 0)) paletteData((address - 16) & 0xFFFF) = value & 0xFF
+    else paletteData(address) = value & 0xFF
   }
 }

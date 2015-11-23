@@ -3,4 +3,5 @@ project/target
 .idea/
 roms/
 target/
-nestest.log
+*.log
+*.TODO

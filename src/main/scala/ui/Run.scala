@@ -1,132 +1,114 @@
 package ui
 
-import java.awt.Toolkit
-import java.awt.event._
+import java.awt.{BorderLayout, Canvas}
 import javax.swing._
+import javax.swing.filechooser.FileFilter
 
-import nescala.BuildInfo
+import org.lwjgl.LWJGLException
+import org.lwjgl.opengl.{AWTGLCanvas, Display}
 
-/**
- * Created by Hywel on 7/30/15.
- */
-object Run extends JFrame {
+import scala.swing.{Action, _}
 
-  private final val listener = new AL()
+object Run extends SimpleSwingApplication {
 
-  class AL extends ActionListener with WindowListener {
+  import java.io.File
 
-    override def actionPerformed(arg0:ActionEvent)
-    {
-      // placeholder for more robust handler
-      if (arg0.getActionCommand.equals("Quit")) {
-        //nes.quit()
-      }
-    }
+  val initialWindowSize = new Dimension(256, 240)
 
-    override def windowDeiconified(windowEvent: WindowEvent): Unit = ???
+  private var filePath:Option[String] = None
 
-    override def windowClosing(windowEvent: WindowEvent): Unit = ???
+  implicit val macroGl = org.macrogl.Macrogl.default
 
-    override def windowClosed(windowEvent: WindowEvent): Unit = ???
+  UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
 
-    override def windowActivated(windowEvent: WindowEvent): Unit = ???
+  //Init Mac OSX native menu
+  System.setProperty("apple.laf.useScreenMenuBar", "true")
+  val app = com.apple.eawt.Application.getApplication
+  app.setDefaultMenuBar(mainMenuBar)
 
-    override def windowOpened(windowEvent: WindowEvent): Unit = ???
+  System.setProperty("org.lwjgl.opengl.Window.undecorated", "true")
 
-    override def windowDeactivated(windowEvent: WindowEvent): Unit = ???
+  lazy val top = new MainFrame {
+    title = s"Nescala ${nescala.BuildInfo.version}"
+    size = initialWindowSize
 
-    override def windowIconified(windowEvent: WindowEvent): Unit = ???
+    peer.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
+    peer.setFocusable(true)
+    peer.setIgnoreRepaint(true)
   }
 
-    def main(args: Array[String]) = {
-        //  construct window
-        this.setTitle(s"Nescala ${BuildInfo.version}")
-        this.setResizable(false)
-      buildMenus()
-      //setRenderOptions()
+  def stepFrame(image:Image) {
+    val label = new JLabel(new ImageIcon(image))
+
+    val panel = new JPanel()
+    panel.add(label)
+
+    val scrollPane = new JScrollPane(panel)
+    JOptionPane.showMessageDialog(null, scrollPane)
+  }
+
+  def canvas:Canvas = new AWTGLCanvas {
+    setSize(initialWindowSize)
+    setFocusable(true)
+    setIgnoreRepaint(true)
+
+    override def addNotify() = {
+      super.addNotify()
+      filePath.foreach{ path => attachDisplay(this, path).start()}
     }
 
-    def buildMenus() {
-      val menus = new JMenuBar()
-      val file = new JMenu("File")
-      val itemOpenRom = file.add(new JMenuItem("Open ROM"))
-      itemOpenRom.addActionListener(listener)
-      itemOpenRom.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      file.addSeparator()
-
-      val itemPreferences = file.add(new JMenuItem("Preferences"))
-      itemPreferences.addActionListener(listener)
-      itemPreferences.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_P,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      file.addSeparator()
-
-      val itemToggleFullscreen = file.add(new JMenuItem("Toggle Fullscreen"))
-      itemToggleFullscreen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F11, 0))
-      itemToggleFullscreen.addActionListener(listener)
-      menus.add(file)
-
-      val itemQuit = file.add(new JMenuItem("Quit"))
-      itemQuit.addActionListener(listener)
-      menus.add(file)
-
-    val nesmenu = new JMenu("NES")
-    val itemReset = nesmenu.add( new JMenuItem("Reset"))
-      itemReset.addActionListener(listener)
-      itemReset.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-    val itemHardReset = nesmenu.add(new JMenuItem("Hard Reset"))
-      itemHardReset.addActionListener(listener)
-      itemHardReset.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-   val itemPause =  nesmenu.add(new JMenuItem("Pause"))
-      itemPause.addActionListener(listener)
-      itemPause.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0))
-
-      val itemResume = nesmenu.add(new JMenuItem("Resume"))
-      itemResume.addActionListener(listener)
-      itemResume.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0))
-
-      val itemFastForward = nesmenu.add(new JMenuItem("Fast Forward"))
-      itemFastForward.addActionListener(listener)
-      itemFastForward.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      val itemFrameAdvance = nesmenu.add(new JMenuItem("Frame Advance"))
-      itemFrameAdvance.addActionListener(listener)
-      itemFrameAdvance.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      nesmenu.addSeparator()
-
-      val itemControllerSettings = nesmenu.add(new JMenuItem("Controller Settings"))
-      itemControllerSettings.addActionListener(listener)
-      itemControllerSettings.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      val itemCheatCodes = nesmenu.add(new JMenuItem("Cheat Codes"))
-      itemCheatCodes.addActionListener(listener)
-      itemCheatCodes.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F10,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      nesmenu.addSeparator()
-
-      val itemRomInfo = nesmenu.add(new JMenuItem("ROM Info"))
-      itemRomInfo.addActionListener(listener)
-      itemRomInfo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I,
-      Toolkit.getDefaultToolkit.getMenuShortcutKeyMask))
-
-      menus.add(nesmenu)
-
-      val help = new JMenu("Help")
-      val itemAbout = help.add(new JMenuItem("About"))
-      itemAbout.addActionListener(listener)
-      itemAbout.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0))
-      menus.add(help)
-      this.setJMenuBar(menus)
+    override def removeNotify() = {
+      detachDisplay()
+      super.removeNotify()
     }
+
+    def attachDisplay(frame: this.type, path:String) = new Thread {
+         override def run() {
+            try {
+              Display.setParent(frame)
+              Display.create()
+              Director(frame, new Audio).Start(path)
+              filePath = None
+            } catch {
+              case e: LWJGLException => e.printStackTrace()
+            }
+        }
+    }
+
+    def detachDisplay():Unit = Display.destroy()
+  }
+
+  private def addDisplay(path:String) = {
+    top.peer.remove(canvas)
+    filePath = Some(path)
+    top.peer.add(canvas, BorderLayout.CENTER)
+    top.peer.pack()
+  }
+
+  def mainMenuBar = {
+    val menuBar = new MenuBar() {
+      contents += new Menu("File") {
+        contents += new MenuItem(Action("Load Rom")(openFileDialog.foreach(addDisplay)))
+        contents += new MenuItem(Action("Exit")(System.exit(0)))
+      }
+    }
+    menuBar.peer
+  }
+
+  def openFileDialog:Option[String] = {
+    val fileChooser = new FileChooser(){
+      fileHidingEnabled = true
+      title = "Select Rom File"
+      fileFilter = new FileFilter {
+        override def getDescription: String = ".nes"
+
+        override def accept(file: File): Boolean = file.getName.toLowerCase.endsWith(".nes")
+      }
+      fileSelectionMode = FileChooser.SelectionMode.FilesAndDirectories
+      peer.setCurrentDirectory(new File("user.home"))
+    }
+
+    if(fileChooser.showOpenDialog(null) == FileChooser.Result.Approve) Option(fileChooser.selectedFile.getPath)
+    else None
+  }
 }

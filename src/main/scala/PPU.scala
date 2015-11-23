@@ -1,9 +1,8 @@
+package nescala
+
 import java.awt.image.BufferedImage
 
-/**
- * Created by Hywel on 5/1/15.
- */
-class PPU(val memory:PPUMemory) {
+case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   var DMAStall = false
 
@@ -11,14 +10,15 @@ class PPU(val memory:PPUMemory) {
   // 0-340
   var scanLine = 0
   // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
-  private var frame = 0 // frame counter
+  var frame = 0L // frame counter
 
-  private val oamData = new Array[Int](256)
-  private var front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
-  private var back = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+  var front =  new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+  private var back =  new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+
+  private val oamData = Array.fill(256)(0)
   // PPU registers
-  // current vram address (15 bit) // temporary vram address (15 bit) // fine x scroll (3 bit) // write toggle (1 bit) // even/odd frame flag (1 bit)
-  private var v, t, x, w, f = 0
+  // current vram address (15 bit) // temporary vram address (15 bit) // fine fineX scroll (3 bit) // write toggle (1 bit) // even/odd frame flag (1 bit)
+  private var vramAddress, tempVramAddress, fineX, writeToggle, frameFlag = 0
   private var register = 0
 
   // NMI flags
@@ -26,11 +26,13 @@ class PPU(val memory:PPUMemory) {
   private var nmiDelay = 0
 
   // background temporary variables
-  private var nameTableByte, attributeTableByte, lowTileByte, highTileByte, tileData = 0
+  private var nameTableByte, attributeTableByte, lowTileByte, highTileByte = 0
+
+  private var tileData = 0L
 
   // sprite temporary variables
   private var spriteCount = 0
-  private val spritePatterns, spritePositions, spritePriorities, spriteIndexes = new Array[Int](8)
+  private val spritePatterns, spritePositions, spritePriorities, spriteIndexes =  Array.fill(8)(0)
 
   // $2000 PPUCTRL
   private var flagNameTable = 0
@@ -72,9 +74,9 @@ class PPU(val memory:PPUMemory) {
   private var bufferedData = 0 // for buffered reads
 
   def Reset() {
-    this.cycle = 340
-    this.scanLine = 240
-    this.frame = 0
+    cycle = 340
+    scanLine = 240
+    frame = 0
     writeControl(0)
     writeMask(0)
     writeOAMAddress(0)
@@ -82,147 +84,131 @@ class PPU(val memory:PPUMemory) {
 
   // $2000: PPUCTRL
   private def writeControl(value: Int) = {
-    this.flagNameTable = (value >> 0) & 3
-    this.flagIncrement = (value >> 2) & 1
-    this.flagSpriteTable = (value >> 3) & 1
-    this.flagBackgroundTable = (value >> 4) & 1
-    this.flagSpriteSize = (value >> 5) & 1
-    this.flagMasterSlave = (value >> 6) & 1
-    this.nmiOutput = ((value >> 7) & 1) == 1
-    this.nmiChange()
-    // t: ....BA.. ........ = d: ......BA
-    this.t = (this.t & 0xF3FF) | (value & 0x03) << 10
+    flagNameTable = ((value >>> 0) & 3) & 0xFF
+    flagIncrement = ((value >>> 2) & 1)  & 0xFF
+    flagSpriteTable = ((value >>> 3) & 1)  & 0xFF
+    flagBackgroundTable = ((value >>> 4) & 1)  & 0xFF
+    flagSpriteSize = ((value >>> 5) & 1)  & 0xFF
+    flagMasterSlave = ((value >>> 6) & 1)  & 0xFF
+    nmiOutput = (((value >>> 7) & 1) & 0xFF) == 1
+    nmiChange()
+    // tempVramAddress: ....BA.. ........ = d: ......BA
+    tempVramAddress = ((tempVramAddress & 0xF3FF) | (value & 0xFF & 0x03) << 10) & 0xFFFF
   }
 
   // $2001: PPUMASK
   private def writeMask(value: Int) = {
-    this.flagGrayscale = (value >> 0) & 1
-    this.flagShowLeftBackground = (value >> 1) & 1
-    this.flagShowLeftSprites = (value >> 2) & 1
-    this.flagShowBackground = (value >> 3) & 1
-    this.flagShowSprites = (value >> 4) & 1
-    this.flagRedTint = (value >> 5) & 1
-    this.flagGreenTint = (value >> 6) & 1
-    this.flagBlueTint = (value >> 7) & 1
+    flagGrayscale = (value >>> 0) & 1
+    flagShowLeftBackground = (value >>> 1) & 1
+    flagShowLeftSprites = (value >>> 2) & 1
+    flagShowBackground = (value >>> 3) & 1
+    flagShowSprites = (value >>> 4) & 1
+    flagRedTint = (value >>> 5) & 1
+    flagGreenTint = (value >>> 6) & 1
+    flagBlueTint = (value >>> 7) & 1
   }
 
   // $2002: PPUSTATUS
   private def readStatus(): Int = {
-    var result = this.register & 0x1F
-    result |= flagSpriteOverflow << 5
-    result |= flagSpriteZeroHit << 6
-    if (this.nmiOccurred) {
-      result |= 1 << 7
-    }
-    this.nmiOccurred = false
+    var result = register & 0x1F
+    result = (result | (flagSpriteOverflow << 5)) & 0xFF
+    result = (result | (flagSpriteZeroHit << 6)) & 0xFF
+    if (nmiOccurred) result = (result | (1 << 7)) & 0xFF
+    nmiOccurred = false
     nmiChange()
-    // w:                   = 0
-    this.w = 0
+    // writeToggle:     = 0
+    writeToggle = 0
     result
   }
 
   // $2003: OAMADDR
-  private def writeOAMAddress(value: Int) = {
-    this.oamAddress = value
-  }
+  private def writeOAMAddress(value: Int) = oamAddress = value
 
   // $2004: OAMDATA (read)
-  private def readOAMData(): Int = {
-    this.oamData(this.oamAddress)
-  }
+  private def readOAMData(): Int = oamData(oamAddress)
 
   // $2004: OAMDATA (write)
   private def writeOAMData(value: Int) = {
-    this.oamData(oamAddress) = value
-    this.oamAddress = this.oamAddress + this.oamAddress
+    oamData(oamAddress) = value
+    oamAddress = (oamAddress + 1) & 0xFF
   }
 
   // $2005: PPUSCROLL
   private def writeScroll(value: Int) = {
-    if (this.w == 0) {
-      // t: ........ ...HGFED = d: HGFED...
-      // x:               CBA = d: .....CBA
-      // w:                   = 1
-      this.t = (this.t & 0xFFE0) | (value >>> 3)
-      this.x = value & 0x07
-      this.w = 1
+    if (writeToggle == 0) {
+      // tempVramAddress: ........ ...HGFED = d: HGFED...
+      // fineX:               CBA = d: .....CBA
+      // writeToggle:                   = 1
+      tempVramAddress = ((tempVramAddress & 0xFFE0) | (value >>> 3)) & 0xFFFF
+      fineX = value & 0xFF & 0x07
+      writeToggle = 1
     } else {
-      // t: .CBA..HG FED..... = d: HGFEDCBA
-      // w:                   = 0
-      this.t = (this.t & 0x8FFF) | ((value & 0x07) << 12)
-      this.t = (this.t & 0xFC1F) | ((value & 0xF8) << 2)
-      this.w = 0
+      // tempVramAddress: .CBA..HG FED..... = d: HGFEDCBA
+      // writeToggle:                   = 0
+      tempVramAddress = ((tempVramAddress & 0x8FFF) | ((value & 0xFFFF & 0x07) << 12)) & 0xFFFF
+      tempVramAddress = ((tempVramAddress & 0xFC1F) | ((value & 0xFFFF & 0xF8) << 2)) & 0xFFFF
+      writeToggle = 0
     }
   }
 
   // $2006: PPUADDR
   private def writeAddress(value: Int) = {
-    if (this.w == 0) {
-      // t: ..FEDCBA ........ = d: ..FEDCBA
-      // t: .X...... ........ = 0
-      // w:                   = 1
-      this.t = (this.t & 0x80FF) | ((value & 0x3F) << 8)
-      this.w = 1
+    if (writeToggle == 0) {
+      // tempVramAddress: ..FEDCBA ........ = d: ..FEDCBA
+      // tempVramAddress: .X...... ........ = 0
+      // writeToggle:                   = 1
+      tempVramAddress = ((tempVramAddress & 0x80FF) | ((value  & 0xFFFF & 0x3F) << 8)) & 0xFFFF
+      writeToggle = 1
     } else {
-      // t: ........ HGFEDCBA = d: HGFEDCBA
-      // v                    = t
-      // w:                   = 0
-      this.t = (this.t & 0xFF00) | value
-      this.v = this.t
-      this.w = 0
+      // tempVramAddress: ........ HGFEDCBA = d: HGFEDCBA
+      // vramAddress                    = tempVramAddress
+      // writeToggle:                   = 0
+      tempVramAddress = ((tempVramAddress & 0xFF00) | (value  & 0xFFFF)) & 0xFFFF
+      vramAddress = tempVramAddress
+      writeToggle = 0
     }
   }
 
   // $2007: PPUDATA (read)
   private def readData(): Int = {
-    var value = memory.Read(v)
+    var value = Read(vramAddress)
     // emulate buffered reads
-    if (this.v % 0x4000 < 0x3F00) {
-      val buffered = this.bufferedData
-      this.bufferedData = value
+    if (vramAddress % 0x4000 < 0x3F00) {
+      val buffered = bufferedData
+      bufferedData = value
       value = buffered
-    } else {
-      this.bufferedData = memory.Read(this.v - 0x1000)
-    }
+    } else bufferedData = Read((vramAddress - 0x1000) & 0xFFFF)
     // increment address
-    if (this.flagIncrement == 0) {
-      this.v += 1
-    } else {
-      this.v += 32
-    }
+    vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) & 0xFFFF
     value
   }
 
   // $2007: PPUDATA (write)
   private def writeData(value: Int) = {
-    memory.Write(this.v, value)
-    if (this.flagIncrement == 0) {
-      this.v += 1
-    } else {
-      this.v += 32
-    }
+    Write(vramAddress, value)
+    vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) & 0xFFFF
   }
 
   // $4014: OAMDMA
   private def writeDMA(value: Int, dmaRead: Int => Int) = {
-    var address = value << 8
+    var address = (value << 8) & 0xFFFF
 
-    for (i <- 0 to 256) {
-      oamData(this.oamAddress) = dmaRead(address)
-      this.oamAddress = this.oamAddress + this.oamAddress
-      address = address + address
+    for (i <- 0 to 255) {
+      oamData(oamAddress) = dmaRead(address)
+      oamAddress = (oamAddress + 1) & 0xFF
+      address = (address + 1) & 0xFFFF
     }
 
     DMAStall = true
   }
 
   private def nmiChange() = {
-    val nmi = this.nmiOutput && this.nmiOccurred
-    if (nmi && !this.nmiPrevious) {
-      // TODO: this fixes some games but the delay shouldn't have to be so long, so the timings are off somewhere
-      this.nmiDelay = 15
+    val nmi = nmiOutput && nmiOccurred
+    if (nmi && !nmiPrevious) {
+      // TODO: this fixes the odd game, but is incorrect
+      nmiDelay = 15
     }
-    this.nmiPrevious = nmi
+    nmiPrevious = nmi
   }
 
   def ReadRegister(address: Int): Int = address match {
@@ -233,7 +219,7 @@ class PPU(val memory:PPUMemory) {
   }
 
   def WriteRegister(address: Int, value: Int, dmaRead: Int => Int) = {
-    this.register = value
+    register = value & 0xFF
     address match {
       case 0x2000 => writeControl(value)
       case 0x2001 => writeMask(value)
@@ -247,216 +233,212 @@ class PPU(val memory:PPUMemory) {
   }
 
   // tick updates Cycle, ScanLine and Frame counters
-  private def tick(cpu: CPU): Unit = {
-    if (this.nmiDelay > 0) {
-      this.nmiDelay = this.nmiDelay - 1
-      if (this.nmiDelay == 0 && this.nmiOutput && this.nmiOccurred) {
-        cpu.triggerNMI()
-      }
+  private def tick(triggerNMIHandler: => Unit): Unit = {
+    if (nmiDelay > 0) {
+      nmiDelay = (nmiDelay - 1) & 0xFF
+      if (nmiDelay == 0 && nmiOutput && nmiOccurred) triggerNMIHandler
     }
 
-    if (this.flagShowBackground != 0 || this.flagShowSprites != 0) {
-      if (this.f == 1 && this.scanLine == 261 && this.cycle == 339) {
-        this.cycle = 0
-        this.scanLine = 0
-        this.frame += 1
-        this.f ^= 1
+    if (flagShowBackground != 0 || flagShowSprites != 0) {
+      if (frameFlag == 1 && scanLine == 261 && cycle == 339) {
+        cycle = 0
+        scanLine = 0
+        frame += 1
+        frameFlag ^= 1
         return
       }
     }
 
-    this.cycle += 1
+    cycle += 1
 
-    if (this.cycle > 340) {
-      this.cycle = 0
-      this.scanLine += 1
-      if (this.scanLine > 261) {
-        this.scanLine = 0
-        this.frame += 1
-        this.f ^= 1
+    if (cycle > 340) {
+      cycle = 0
+      scanLine += 1
+      if (scanLine > 261) {
+        scanLine = 0
+        frame += 1
+        frameFlag ^= 1
       }
     }
   }
 
-  private val currentTileData: Int = this.tileData >> 32
-
   private def spritePixel(): (Int, Int) = {
-    if (this.flagShowSprites != 0) {
-      val default = for {i <- 0 to this.spriteCount
-                         offset = (this.cycle - 1) - this.spritePositions(i)
-                         nextOffset = 7 - offset if offset > 0 && offset < 7
-                         color = this.spritePatterns(i) >> (offset * 4) & 0x0F
+    if (flagShowSprites != 0) {
+      val default = for {i <- 0 until spriteCount
+                         offset = (cycle - 1) - spritePositions(i)
+                         if offset >= 0 && offset <= 7
+                         nextOffset = 7 - offset
+                         color = (spritePatterns(i) >> ((nextOffset * 4) & 0xFF) & 0x0F) & 0xFF
                          if color % 4 != 0
                     } yield (i, color)
 
-      default.head
+      default.foldLeft((0,0)){ case (any, (i, color)) => (i, color)}
     } else (0, 0)
   }
 
   private def renderPixel() {
-    val x = this.cycle - 1
-    val y = this.scanLine
+    val x = cycle - 1
+    val y = scanLine
     var background = backgroundPixel()
     var (i, sprite) = spritePixel()
 
-    if (x < 8 && this.flagShowLeftBackground == 0) {
-      background = 0
-    }
+    if (x < 8 && flagShowLeftBackground == 0) background = 0
 
-    if (x < 8 && this.flagShowLeftSprites == 0) {
-      sprite = 0
-    }
+    if (x < 8 && flagShowLeftSprites == 0) sprite = 0
+
     val b = background % 4 != 0
     val s = sprite % 4 != 0
     var color = 0
+
     if (!b && !s) color = 0
     else if (!b && s) color = sprite | 0x10
     else if (b && !s) color = background
     else {
-      if (this.spriteIndexes(i) == 0 && x < 255) {
-        this.flagSpriteZeroHit = 1
-      }
-      if (this.spritePriorities(i) == 0) {
-        color = sprite | 0x10
-      } else {
-        color = background
-      }
+      if (spriteIndexes(i) == 0 && x < 255) flagSpriteZeroHit = 1
+      if (spritePriorities(i) == 0) color = (sprite | 0x10) & 0xFF
+      else color = background
     }
-    val c = Palette.lookup(memory.ReadPalette(color) % 64)
-    this.back.setRGB(x, y, c)
+    val c = Palette.lookup((ReadPalette(color) & 0xFF) % 64)
+    back.setRGB(x, y, c)
   }
 
-  def Step(cpu: CPU): Unit = {
-    tick(cpu)
+  def Step(triggerNMIHandler: => Unit): Unit = {
+    tick(triggerNMIHandler)
 
-    val renderingEnabled = this.flagShowBackground != 0 || this.flagShowSprites != 0
-    val preLine = this.scanLine == 261
-    val visibleLine = this.scanLine < 240
-    //val postLine = ppu.ScanLine == 240
+    val renderingEnabled = flagShowBackground != 0 || flagShowSprites != 0
+    val preLine = scanLine == 261
+    val visibleLine = scanLine < 240
+    //val postLine = scanLine == 240
     val renderLine = preLine || visibleLine
-    val preFetchCycle = this.cycle >= 321 && this.cycle <= 336
-    val visibleCycle = this.cycle >= 1 && this.cycle <= 256
+    val preFetchCycle = cycle >= 321 && cycle <= 336
+    val visibleCycle = cycle >= 1 && cycle <= 256
     val fetchCycle = preFetchCycle || visibleCycle
+
     // background logic
     if (renderingEnabled) {
-      if (visibleLine && visibleCycle) renderPixel()
+
+      if (visibleLine && visibleCycle) {
+        renderPixel()
+      }
       if (renderLine && fetchCycle) {
-        this.tileData <<= 4
-        this.cycle % 8 match {
+        tileData = (tileData << 4) & 0xFFFFFFFFFFFFFFFFL
+
+        cycle % 8 match {
           case 1 => fetchNameTableByte()
           case 3 => fetchAttributeTableByte()
           case 5 => fetchLowTileByte()
           case 7 => fetchHighTileByte()
           case 0 => storeTileData()
+          case _ =>
         }
       }
-      if (preLine && this.cycle >= 280 && this.cycle <= 304) copyY()
+      if (preLine && cycle >= 280 && cycle <= 304) copyY()
 
       if (renderLine) {
-        if (fetchCycle && this.cycle % 8 == 0) incrementX()
-        if (this.cycle == 256) incrementY()
-        if (this.cycle == 257) copyX()
+        if (fetchCycle && cycle % 8 == 0) incrementX()
+        if (cycle == 256) incrementY()
+        if (cycle == 257) copyX()
       }
     }
 
     // sprite logic
     if (renderingEnabled) {
-      if (this.cycle == 257) {
+      if (cycle == 257) {
         if (visibleLine) evaluateSprites()
-        else this.spriteCount = 0
+        else spriteCount = 0
       }
     }
 
     // vblank logic
-    if (this.scanLine == 241 && this.cycle == 1) setVerticalBlank()
-    if (preLine && this.cycle == 1) {
+    if (scanLine == 241 && cycle == 1) setVerticalBlank()
+    if (preLine && cycle == 1) {
       clearVerticalBlank()
-      this.flagSpriteZeroHit = 0
-      this.flagSpriteOverflow = 0
+      flagSpriteZeroHit = 0
+      flagSpriteOverflow = 0
     }
   }
 
   def fetchNameTableByte() {
-    val address = 0x2000 | (this.v & 0x0FFF)
-    this.nameTableByte = memory.Read(address)
+    val address = (0x2000 | (vramAddress & 0x0FFF)) & 0xFFFF
+    nameTableByte = Read(address)
   }
 
   def fetchAttributeTableByte() {
-    val v = this.v
-    val address = 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
-    val shift = ((v >> 4) & 4) | (v & 2)
-    this.attributeTableByte = ((memory.Read(address) >> shift) & 3) << 2
+    val address = (0x23C0 | (vramAddress & 0x0C00) | ((vramAddress >>> 4) & 0x38) | ((vramAddress >>> 2) & 0x07)) & 0xFFFF
+    val shift = (((vramAddress >> 4) & 4) | (vramAddress & 2)) & 0xFFFF
+    attributeTableByte = (((Read(address) >>> shift) & 3) << 2) & 0xFF
   }
 
   def fetchLowTileByte() {
-    val fineY = (this.v >> 12) & 7
-    val table = this.flagBackgroundTable
-    val tile = this.nameTableByte
-    val address = 0x1000 * (table & 0xFF) + (tile & 0xFF) * 16 + fineY
-    this.lowTileByte = memory.Read(address)
+    val fineY = (vramAddress >> 12) & 7
+    val table = flagBackgroundTable
+    val tile = nameTableByte
+    val address = (((0x1000 * table) & 0xFFFF) + (tile * 16 + fineY) & 0xFFFF) & 0xFFFF
+    lowTileByte = Read(address)
   }
 
   def fetchHighTileByte() {
-    val fineY = (this.v >> 12) & 7
-    val table = this.flagBackgroundTable
-    val tile = this.nameTableByte
-    val address = 0x1000 * (table & 0xFF) + (tile & 0xFF) * 16 + fineY
-    this.highTileByte = memory.Read(address + 8)
+    val fineY = (vramAddress >> 12) & 7
+    val table = flagBackgroundTable
+    val tile = nameTableByte
+    val address = (((0x1000 * table) & 0xFFFF) + (tile * 16 + fineY) & 0xFFFF) & 0xFFFF
+    highTileByte = Read((address + 8) & 0xFFFF)
   }
 
   def storeTileData() {
-    var data = 0
-    for (i <- 0 to 8) {
-      val a = this.attributeTableByte
-      val p1 = (this.lowTileByte & 0x80) >> 7
-      val p2 = (this.highTileByte & 0x80) >> 6
-      this.lowTileByte <<= 1
-      this.highTileByte <<= 1
-      data = data << 4
-      data = data | (a | p1 | p2)
+    var data = 0L
+    for (i <- 0 to 7) {
+      val a = attributeTableByte
+      val p1 = (lowTileByte & 0x80) >> 7
+      val p2 = (highTileByte & 0x80) >> 6
+      lowTileByte = (lowTileByte << 1) & 0xFF
+      highTileByte = (highTileByte << 1) & 0xFF
+      data = (data << 4) & 0xFFFFFFFF
+      data |= (a | p1 | p2) & 0xFFFFFFFF
     }
-    this.tileData = this.tileData | data
+
+    tileData = tileData | (data & 0xFFFFFFFFFFFFFFFFL)
   }
 
-  val fetchTileData = this.tileData >> 32
+  def fetchTileData = (tileData >> 32) & 0xFFFFFFFFFFFFFFFFL
 
-  def backgroundPixel(): Byte = {
-    if (this.flagShowBackground == 0) return 0
-    val data = fetchTileData >> ((7 - this.x) * 4)
-    (data & 0x0F).toByte
+  def backgroundPixel(): Int = {
+    if (flagShowBackground == 0) return 0
+    val data = (fetchTileData >> ((((7 - fineX) & 0xFF) * 4) & 0xFF)) & 0xFFFFFFFFFFFFFFFFL
+    ((data & 0x0F) & 0xFF).toInt
   }
 
   def copyY() {
-    // vert(v) = vert(t)
-    // v: .IHGF.ED CBA..... = t: .IHGF.ED CBA.....
-    this.v = (this.v & 0x841F) | (this.t & 0x7BE0)
+    // vert(vramAddress) = vert(tempVramAddress)
+    // vramAddress: .IHGF.ED CBA..... = tempVramAddress: .IHGF.ED CBA.....
+    vramAddress = ((vramAddress & 0x841F) | (tempVramAddress & 0x7BE0)) & 0xFFFF
   }
 
   def incrementX() {
-    // increment hori(v)
+    // increment hori(vramAddress)
     // if coarse X == 31
-    if ((this.v & 0x001F) == 31) {
+    if ((vramAddress & 0x001F) == 31) {
       // coarse X = 0
-      this.v &= 0xFFE0
+      vramAddress &= ~0x001F
       // switch horizontal nametable
-      this.v ^= 0x0400
-    } else this.v += 1
+      vramAddress ^= 0x0400
+    } else vramAddress = (vramAddress + 1) & 0xFFFF
   }
 
   def incrementY() {
-    // increment vert(v)
+    // increment vert(vramAddress)
     // if fine Y < 7
-    if ((this.v & 0x7000) != 0x7000) {
+    if ((vramAddress & 0x7000) != 0x7000) {
       // increment fine Y
-      this.v += 0x1000
+      vramAddress = (vramAddress + 0x1000) & 0xFFFF
     } else {
       // fine Y = 0
-      this.v &= 0x8FFF
+      vramAddress &= 0x8FFF
       // let y = coarse Y
-      val testY = (this.v & 0x03E0) >> 5
+      val testY = (vramAddress & 0x03E0) >>> 5
       val y = if (testY == 29) {
         // switch vertical nametable
-        this.v ^= 0x0800
+        vramAddress ^= 0x0800
         // coarse Y = 0
         0
       } else if (testY == 31) {
@@ -464,105 +446,102 @@ class PPU(val memory:PPUMemory) {
         0
       } else {
         // increment coarse Y
-        testY + 1
+        (testY + 1) & 0xFFFF
       }
-      // put coarse Y back into v
-      this.v = (this.v & 0xFC1F) | (y << 5)
+      // put coarse Y back into vramAddress
+      vramAddress = ((vramAddress & 0xFC1F) | (y << 5)) & 0xFFFF
     }
   }
 
   def copyX() {
-    // hori(v) = hori(t)
-    // v: .....F.. ...EDCBA = t: .....F.. ...EDCBA
-    this.v = (this.v & 0xFBE0) | (this.t & 0x041F)
+    // hori(vramAddress) = hori(tempVramAddress)
+    // vramAddress: .....F.. ...EDCBA = tempVramAddress: .....F.. ...EDCBA
+    vramAddress = ((vramAddress & 0xFBE0) | (tempVramAddress & 0x041F)) & 0xFFFF
   }
 
   def evaluateSprites() {
 
-    val h = if (this.flagSpriteSize == 0) 8
+    val h = if (flagSpriteSize == 0) 8
             else 16
     var count = 0
-    for (i <- 0 to 63) {
-      val y = this.oamData(i * 4 + 0)
-      val a = this.oamData(i * 4 + 2)
-      val x = this.oamData(i * 4 + 3)
-      val row = this.scanLine - y
-      if (row > 0 && row <= h)
-      if (count < 8) {
-        this.spritePatterns(count) = fetchSpritePattern(i, row)
-        this.spritePositions(count) = x
-        this.spritePriorities(count) = (a >> 5) & 1
-        this.spriteIndexes(count) = i & 0xFF
-      }
-      count += 1
+
+    for {
+      i <- 0 to 63
+      y = oamData(i * 4 + 0) & 0xFF
+      a = oamData(i * 4 + 2) & 0xFF
+      x = oamData(i * 4 + 3) & 0xFF
+      row = scanLine - y
+      if row >= 0 && row < h
+    } yield {
+        if (count < 8) {
+          spritePatterns(count) = fetchSpritePattern(i, row)
+          spritePositions(count) = x
+          spritePriorities(count) = (a >>> 5) & 1
+          spriteIndexes(count) = i & 0xFF
+        }
+        count += 1
     }
+
     if (count > 8) {
       count = 8
-      this.flagSpriteOverflow = 1
+      flagSpriteOverflow = 1
     }
-    this.spriteCount = count
+    spriteCount = count
   }
 
   def fetchSpritePattern(i:Int, initialRow:Int):Int = {
-    val initialTile = this.oamData(i * 4 + 1)
-    val attributes = this.oamData(i * 4 + 2)
+    val initialTile = oamData(i * 4 + 1) & 0xFF
+    val attributes = oamData(i * 4 + 2) & 0xFF
     var address = 0
     var row = initialRow
     if (this.flagSpriteSize == 0) {
       if ((attributes & 0x80) == 0x80) row = 7 - row
-      val table = this.flagSpriteTable
-      address = 0x1000 * table + initialTile * 16 + row
+      val table = flagSpriteTable
+      address = (0x1000 * (table & 0xFFFF) + (initialTile & 0xFFFF) * 16 + (row & 0xFFFF)) & 0xFFFF
     } else {
       if ((attributes & 0x80) == 0x80) row = 15 - row
       val table = initialTile & 1
       var tile = initialTile & 0xFE
       if (row > 7) {
-          tile += 1
-          row = row - 8
+          tile = (tile + 1) & 0xFF
+          row -= 8
       }
-      address = 0x1000 * table + tile * 16 + row
+      address = (((0x1000 * table) & 0xFFFF) + ((tile * 16) & 0xFFFF) + row) & 0xFFFF
     }
     val a = (attributes & 3) << 2
-    lowTileByte = memory.Read(address)
-    highTileByte = memory.Read(address + 8)
+    lowTileByte = Read(address) & 0xFF
+    highTileByte = Read((address + 8) & 0xFFFF) & 0xFF
     var data = 0
     for (i <- 0 to 7) {
       var p1, p2 = 0
       if ((attributes & 0x40) == 0x40) {
-        p1 = (lowTileByte & 1) << 0
-        p2 = (highTileByte & 1) << 1
-        lowTileByte >>= 1
-        highTileByte >>= 1
+        p1 = ((lowTileByte & 1) << 0) & 0xFF
+        p2 = ((highTileByte & 1) << 1) & 0xFF
+        lowTileByte >>>= 1
+        highTileByte >>>= 1
       } else {
-        p1 = (lowTileByte & 0x80) >> 7
-        p2 = (highTileByte & 0x80) >> 6
-        lowTileByte <<= 1
-        highTileByte <<= 1
+        p1 = ((lowTileByte & 0x80) >>> 7) & 0xFF
+        p2 = ((highTileByte & 0x80) >>> 6) & 0xFF
+        lowTileByte = (lowTileByte << 1) & 0xFF
+        highTileByte = (highTileByte << 1) & 0xFF
       }
       data <<= 4
-      data |= (a | p1 | p2)
+      data |= (a | p1 | p2) & 0xFFFFFFFF
     }
     data
   }
 
   def setVerticalBlank() {
-    this.front = this.back
-    this.back = this.front
-    this.nmiOccurred = true
+    front = back
+    back = front
+    nmiOccurred = true
     nmiChange()
   }
 
   def clearVerticalBlank() {
-    this.nmiOccurred = false
+    nmiOccurred = false
     nmiChange()
   }
-}
 
-object PPU {
-  // Reset resets the PPU to its initial power-up state
-  def apply(cartridge: Cartridge, mapper:Mapper): PPU = {
-    val ppu = new PPU(PPUMemory(cartridge, mapper))
-    ppu.Reset()
-    ppu
-  }
+  Reset()
 }
