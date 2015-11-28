@@ -28,11 +28,10 @@ object Texture {
 
   def setTexture(im:BufferedImage)(implicit gl:Macrogl) = {
 
-    val dataBuffer = im.getRaster.getDataBuffer
+    val dataBuffer = im.getRaster.getDataBuffer.asInstanceOf[DataBufferInt]
 
-    buffer.put(IntBuffer.wrap(dataBuffer.asInstanceOf[DataBufferInt].getData))
+    buffer.put(IntBuffer.wrap(dataBuffer.getData))
     buffer.flip()//FOR THE LOVE OF GOD DO NOT FORGET THIS
-
     // Use GL_UNSIGNED_INT_8_8_8_8_REV to reverse RGBA pixel format to BGRA on GPU
     gl.texImage2D(Macrogl.TEXTURE_2D, 0, Macrogl.RGBA, im.getWidth, im.getHeight, 0, GL12.GL_BGRA, GL12.GL_UNSIGNED_INT_8_8_8_8_REV, buffer)
     buffer.rewind()

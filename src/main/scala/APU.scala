@@ -1,24 +1,23 @@
 package nescala
 
-import ui.Audio
-
-class APU(audio: Audio) {
+case class APU(channel: (Float) => Unit) {
 
   var DMAStall = false
   private var cycle = 0L
   private val frameCounterRate = CPU.frequency / 240.0
-  private val sampleRate = CPU.frequency / audio.sampleRate
+  private val sampleRate = CPU.frequency / 44100
   private val filterChain = FilterChain(sampleRate)
   private case class Length(var enabled:Boolean = false, var value:Int = 0,
                             table:Array[Int] = Array(10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14,
                                           12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30))
   private case class Timer(var period:Int = 0, var value:Int = 0)
-  private case class Duty (var mode:Int = 0, var value:Int = 0){
+  private case class Duty (var mode:Int = 0, var value:Int = 0)
+  private object Duty {
     val table = Array(
-        Array(0, 1, 0, 0, 0, 0, 0, 0),
-        Array(0, 1, 1, 0, 0, 0, 0, 0),
-        Array(0, 1, 1, 1, 1, 0, 0, 0),
-        Array(1, 0, 0, 1, 1, 1, 1, 1)
+      Array(0, 1, 0, 0, 0, 0, 0, 0),
+      Array(0, 1, 1, 0, 0, 0, 0, 0),
+      Array(0, 1, 1, 1, 1, 0, 0, 0),
+      Array(1, 0, 0, 1, 1, 1, 1, 1)
     )
   }
   private case class Envelope (var enabled:Boolean = false, var loop :Boolean = false, var start: Boolean = false,
@@ -34,7 +33,7 @@ class APU(audio: Audio) {
                      var shift: Int = 0, var period:Int = 0,var value:Int = 0)
 
     var enabled        = false
-    var length         = Length()
+    val length         = Length()
     val timer          = Timer()
     val duty           = Duty()
     val sweep          = Sweep()
@@ -68,7 +67,7 @@ class APU(audio: Audio) {
       duty.value = 0
     }
 
-    def stepTimer() {
+    def stepTimer() = {
 	    if (timer.value == 0) {
         timer.value = timer.period
 		    duty.value = ((duty.value + 1) & 0xFF) % 8
@@ -115,7 +114,7 @@ class APU(audio: Audio) {
     def output():Int = {
       if (!enabled) return 0
       if (length.value == 0) return 0
-      if (duty.table(duty.mode)(duty.value) == 0) return 0
+      if (Duty.table(duty.mode)(duty.value) == 0) return 0
       if (timer.period < 8 || timer.period > 0x7FF) return 0
       // if (!sweepNegate && timerPeriod+(timerPeriod>>p.sweepShift) > 0x7FF) return 0
 
@@ -162,7 +161,7 @@ class APU(audio: Audio) {
 
     def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) & 0xFF
 
-    def stepCounter() {
+    def stepCounter() = {
 	    if (counterReload) counterValue = counterPeriod else if (counterValue > 0) counterValue -= 1
 	    if (length.enabled) counterReload = false
     }
@@ -185,7 +184,7 @@ class APU(audio: Audio) {
     var constantVolume:Int = 0
     private val table = Array(4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068)
 
-    def writeControl(value:Int) {
+    def writeControl(value:Int) = {
       length.enabled = ((value >> 5) & 1) == 0
       envelope.loop = ((value >> 5) & 1) == 1
       envelope.enabled = ((value >> 4) & 1) == 0
@@ -194,12 +193,12 @@ class APU(audio: Audio) {
       envelope.start = true
     }
 
-    def writePeriod(value:Int) {
+    def writePeriod(value:Int) = {
       mode = (value & 0x80) == 0x80
       timer.period = table(value & 0x0F)
     }
 
-    def writeLength(value:Int) {
+    def writeLength(value:Int) = {
       if(enabled) length.value = length.table(value >> 3)
       envelope.start = true
     }
@@ -273,10 +272,8 @@ class APU(audio: Audio) {
 	    currentLength = sampleLength
     }
 
-    def stepTimer(dmaRead: Int => Int) {
-	    if (!enabled) {
-		    return
-	    }
+    def stepTimer(dmaRead: Int => Int):Unit = {
+	    if (!enabled) return
 	    stepReader(dmaRead)
       if (tickValue == 0) {
         tickValue = tickPeriod
@@ -302,7 +299,7 @@ class APU(audio: Audio) {
 	    }
     }
 
-    def stepShifter() {
+    def stepShifter():Unit = {
 	    if (bitCount == 0) return
 
       if ((shiftRegister & 1) == 1) {
@@ -329,11 +326,9 @@ class APU(audio: Audio) {
   private var frameIRQ            = false
   private var frameIRQActive      = false
 
-  def ReadRegister(address: Int): Int = {
-     address match {
-      case 0x4015 => readStatus
-      case default => 0
-    }
+  def ReadRegister(address: Int): Int = address match {
+   case 0x4015  => readStatus
+   case default => 0
   }
 
   def WriteRegister(address: Int, value: Int) = address match {
@@ -377,7 +372,7 @@ class APU(audio: Audio) {
     if (s1 != s2) sendSample()
   }
 
-  def sendSample() = audio.receive(output())//audio.receive(filterChain.Step(output()))
+  def sendSample() = channel(output()) //TODO: get filterChain.Step(output()) working
 
   def output(): Float = {
     val p1 = pulse1.output()
@@ -399,12 +394,11 @@ class APU(audio: Audio) {
     if (dmc.currentLength > 0)      result |= 16
     if (frameIRQ)                   result |= 64
     if (dmc.irq)                    result |= 128
-   // println(s"Read Status: frameIRQ $frameIRQ frameIRQActive $frameIRQActive pulse1.enabled ${pulse1.enabled} pulse1.length.value: ${pulse1.length.value} result: ${Integer.toHexString(result)} cycle: $cycle")
     frameIRQ = false
     result
   }
 
-  private def writeControl(value:Int) {
+  private def writeControl(value:Int) = {
     pulse1.enabled    = (value & 1) == 1
     pulse2.enabled    = (value & 2) == 2
     triangle.enabled  = (value & 4) == 4
@@ -413,7 +407,6 @@ class APU(audio: Audio) {
     if (!pulse2.enabled) pulse2.length.value = 0
     if (!triangle.enabled) triangle.length.value = 0
     if (!noise.enabled) noise.length.value = 0
-    //println(s"Wrote Control: pulse1.enabled ${pulse1.enabled} pulse2.enabled ${pulse2.enabled} triangle.enabled ${triangle.enabled} noise.enabled ${noise.enabled}")
   }
 
   private def writeFrameCounter(value:Int) = {
@@ -428,7 +421,6 @@ class APU(audio: Audio) {
     }
 
     if(!frameIRQActive) frameIRQ = false
-    //println(s"Wrote frame counter - framePeriod: $framePeriod frameIRQActive: $frameIRQActive frameIRQ: $frameIRQ value: 0x${Integer.toHexString(value)}")
   }
 
   private def stepTimer(dmaRead: Int => Int) = {

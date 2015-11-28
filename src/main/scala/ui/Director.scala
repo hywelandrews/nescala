@@ -2,6 +2,7 @@ package ui
 
 import java.awt.Canvas
 
+import nescala.BuildInfo
 import org.lwjgl.opengl.Display
 import org.macrogl.Macrogl
 
@@ -30,12 +31,12 @@ case class Director(window : Canvas, audio: Audio, var view: Option[View] = None
 
   def Start(path: String) = loadView(path) match {
             case Success(_) => run()
-            case Failure(e) => Dialog.showMessage(new {def peer = window.getParent}, e.getMessage, "Nescala", Dialog.Message.Warning)
+            case Failure(e) => Dialog.showMessage(new {def peer = window.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
   }
 
   private def loadView(path: String) = Try(nescala.Console(path, audio)).map(console => SetView(Some(GameView(console, audio, window))))
 
-  private def run() = while (Display.isCurrent) {
+  private def run() = while (!Display.isCloseRequested) {
       Step()
       Display.update(true)
   }

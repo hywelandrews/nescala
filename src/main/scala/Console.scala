@@ -1,6 +1,5 @@
 package nescala
 
-import java.awt.image.BufferedImage
 import java.io.{File, PrintWriter}
 
 import ui.Audio
@@ -18,7 +17,7 @@ object FileHelper {
   }
 }
 
-final class Console(val cartridge:Cartridge, val cpu: CPU, val ram:Array[Int], val mapper:Mapper, val ppu:PPU, val apu:APU, val controller1:Controller, val controller2:Controller) {
+final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Mapper, val ppu:PPU, apu:APU, val controller1:Controller, val controller2:Controller) {
   private def Step(): Long ={
     val cpuCycles = cpu.Step()
     val ppuCycles = cpuCycles * 3
@@ -38,20 +37,16 @@ final class Console(val cartridge:Cartridge, val cpu: CPU, val ram:Array[Int], v
   def StepFrame(): Long = {
     var cpuCycles = 0L
     val frame = ppu.frame
-    while (frame == ppu.frame) {
-      cpuCycles += Step()
-    }
+    while (frame == ppu.frame) cpuCycles += Step()
     cpuCycles
   }
 
   def StepSeconds(seconds:Double):Unit = {
     var cycles = CPU.frequency * seconds
-    while (cycles > 0) {
-      cycles = cycles - Step()
-    }
+    while (cycles > 0) cycles = cycles - Step()
   }
 
-  def VideoBuffer(): BufferedImage = ppu.front
+  def VideoBuffer() = ppu.front
 
   @tailrec
   def Run():Unit = {
@@ -90,7 +85,7 @@ object Console
   }
 
   def start(console:Console) = {
-    println("s: Step into CPU r: Run Ui! l: Log output of CPU to file q: Quit")
+    println("s: Step into CPU r: Run l: Log output of CPU to file q: Quit")
 
     while (true) scala.Console.in.readLine() match {
       case input if input == "r" => console.Run()
@@ -108,7 +103,7 @@ object Console
     val controller1 = Controller()
     val controller2 = Controller()
     val mapper = Mapper(cartridge)
-    val apu = new APU(audio)
+    val apu = APU(audio.receive)
     val ppu = PPU(cartridge, mapper)
     val cpu = CPU(ram, ppu, apu, controller1, controller2, mapper)
 

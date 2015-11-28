@@ -4,8 +4,6 @@ version := "0.1"
 
 scalaVersion := "2.11.7"
 
-mainClass in (Compile,run) := Some("Console")
-
 resolvers ++= Seq(
   "Sonatype OSS Snapshots" at
     "https://oss.sonatype.org/content/repositories/snapshots",
@@ -16,11 +14,15 @@ resolvers ++= Seq(
 libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
                             "com.storm-enroute" %% "macrogl" % "0.4-SNAPSHOT")
 
-javaOptions in run += s"-Djava.library.path=libs/"
-
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
   settings(
+    mainClass in (Compile,run) := Some("ui.Run"),
+    fork in run := true,
+    javaOptions in run += "-XX:UseSSE=3",
+    javaOptions in run += "-XX:+UseConcMarkSweepGC",
+    javaOptions in run +=  "-Xms128m",
+    javaOptions += "-Djava.library.path=libs/",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "nescala"
   )

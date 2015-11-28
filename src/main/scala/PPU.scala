@@ -12,8 +12,8 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
   var frame = 0L // frame counter
 
-  var front =  new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
-  private var back =  new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+  var front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+  private val back = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
 
   private val oamData = Array.fill(256)(0)
   // PPU registers
@@ -466,7 +466,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     var count = 0
 
     for {
-      i <- 0 to 63
+      i <- 0 until 64
       y = oamData(i * 4 + 0) & 0xFF
       a = oamData(i * 4 + 2) & 0xFF
       x = oamData(i * 4 + 3) & 0xFF
@@ -533,7 +533,6 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   def setVerticalBlank() {
     front = back
-    back = front
     nmiOccurred = true
     nmiChange()
   }

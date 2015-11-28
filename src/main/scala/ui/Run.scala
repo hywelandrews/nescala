@@ -13,7 +13,8 @@ object Run extends SimpleSwingApplication {
 
   import java.io.File
 
-  val initialWindowSize = new Dimension(256, 240)
+  val scale = 2
+  val initialWindowSize = new Dimension(256 * scale, 240 * scale)
 
   private var filePath:Option[String] = None
 
@@ -29,11 +30,13 @@ object Run extends SimpleSwingApplication {
   System.setProperty("org.lwjgl.opengl.Window.undecorated", "true")
 
   lazy val top = new MainFrame {
-    title = s"Nescala ${nescala.BuildInfo.version}"
+    title = s"${nescala.BuildInfo.name} ${nescala.BuildInfo.version}"
     size = initialWindowSize
+    minimumSize = new Dimension(256, 240)
 
     peer.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
     peer.setFocusable(true)
+    peer.setLocationRelativeTo(null)
     peer.setIgnoreRepaint(true)
   }
 
@@ -63,7 +66,7 @@ object Run extends SimpleSwingApplication {
     }
 
     def attachDisplay(frame: this.type, path:String) = new Thread {
-         override def run() {
+         override def run() = {
             try {
               Display.setParent(frame)
               Display.create()
