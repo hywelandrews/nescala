@@ -110,9 +110,9 @@ object Console
     val Console = new Console(cartridge, cpu, ram, mapper, ppu, apu, controller1, controller2)
 
     println(s"""
-            |${cartridge.Header}
-            |
+            |File: $filename
             |$cartridge
+            |${cartridge.Header}
             """.stripMargin)
 
     Console

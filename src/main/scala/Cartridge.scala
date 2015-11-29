@@ -25,13 +25,7 @@ final case class Cartridge(private val path:String) {
 
     if (Magic != fileMagic) throw new IllegalArgumentException("Invalid iNes file")
 
-    override def toString =
-      s"""Header NumPRG: $NumPRG
-         |Header NumCHR: $NumCHR
-         |Header Control1: $Control1
-         |Header Control2: $Control2
-         |Header NumRam: $NumRam
-       """.stripMargin
+    override def toString = s"PRG: $NumPRG CHR: $NumCHR Ram: $NumRam"
   }
 
   private val rom = if (!path.endsWith(".nes")) Failure(new IllegalArgumentException("Invalid filename")) else Try(new FileInputStream(path))
@@ -71,6 +65,5 @@ final case class Cartridge(private val path:String) {
   override def toString =
     s"""Mapper: $Mapper
        |Mirror: $Mirror
-       |Battery: $Battery
-    """.stripMargin
+       |Battery: $Battery""".stripMargin
 }
