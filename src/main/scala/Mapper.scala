@@ -7,6 +7,7 @@ trait Mapper {
   val sRamAddress = 0x6000
   val isChr: Int => Boolean = x => x < 0x2000
   val isPrg1: Int => Boolean = x => x >= 0x8000
+  val isPrg2:Int => Boolean = x => x >= 0xC000
   val isSRam: Int => Boolean = x => x >= sRamAddress
 }
 
@@ -23,6 +24,7 @@ object Mapper {
     cartridge.Mapper match {
       case 0 | 2 => Mapper2(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 1     => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 3     => Mapper3(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case unsupported => throw new Exception(s"Unhandled mapper: $unsupported")
     }
   }
@@ -166,7 +168,6 @@ case class Mapper2(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
   var prgBanks = prgRom.length / 0x4000
   var prgBank1 = 0
   var prgBank2 = prgBanks - 1
-  val isPrg2:Int => Boolean = x => x >= 0xC000
 
   override def Read(address: Int): Int = address match {
     case chr if isChr(address) => chrRom(address)
@@ -194,3 +195,39 @@ case class Mapper2(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
   }
 }
 
+case class Mapper3(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+
+  var prgBanks = chrRom.length / 0x4000
+  var chrBank  = 0
+  var prgBank1 = 0
+  var prgBank2 = prgBanks - 1
+
+  override def Read(address:Int): Int =  address match {
+      case chr if isChr(address) =>
+        val index = chrBank * 0x2000 + address
+        chrRom(index)
+      case prg2 if isPrg2(address) =>
+        val index = prgBank2 * 0x4000 + (address - 0xC000)
+        prgRom(index)
+      case prg1 if isPrg1(address) =>
+        val index = prgBank1 * 0x4000 + (address - 0x8000)
+        prgRom(index)
+      case saveRam if address >= 0x6000 =>
+        val index = (address - 0x6000) & 0xFFFF
+        sRam(index)
+      case default => System.err.println(s"Unhandled mapper3 write at address: ${Integer.toHexString(default)}"); 0
+  }
+
+  override def Write(address: Int, value: Int): Unit = address match {
+    case chr if isChr(address) =>
+      val index = chrBank * 0x2000 + address
+      chrRom(index) = value
+    case prg1 if isPrg1(address) => chrBank = value & 3
+    case saveRam if isSRam(address) =>
+        val index = address - 0x6000
+        sRam(index) = value
+    case default => System.err.println(s"Unhandled mapper2 read at address: ${Integer.toHexString(default)}"); throw new Exception
+  }
+
+  def Step() = ()
+}
