@@ -21,26 +21,32 @@ object Mirror {
 object Mapper {
   def apply(cartridge:Cartridge): Mapper = {
     cartridge.Mapper match {
-      case 0 => Mapper2(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
-      case 1 => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
-      case unsupported => System.err.println(s"Unhandled mapper: $unsupported"); throw new Exception()
+      case 0 | 2 => Mapper2(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 1     => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case unsupported => throw new Exception(s"Unhandled mapper: $unsupported")
     }
   }
 }
 
 case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+  private val resetShiftRegister = 0x10
   private var shiftRegister: Int = resetShiftRegister
   private var prgMode, chrMode, prgBank, chrBank0, chrBank1, control: Int = 0
-  private val prgOffsets, chrOffsets: Array[Int] = Array[Int](2)
+  private val prgOffsets: Array[Int] = Array(0, prgBankOffset(-1))
+  private val chrOffsets: Array[Int] = Array(0, 0)
 
   def Read(address: Int): Int = address match {
     case chr if isChr(address) =>
       val bank = chr / 0x1000
       val offset = chr % 0x1000
       chrRom(chrOffsets(bank) + offset)
-    case prg if isPrg1(address) => 0
-    case saveRam if isSRam(address) => 0
-    case default => System.err.println(s"Unhandled mapper1 read at address: ${Integer.toHexString(default)}"); throw new IndexOutOfBoundsException
+    case prg if isPrg1(address) =>
+      val loadAddress = (address - 0x8000) & 0xFFFF
+      val bank = loadAddress / 0x4000
+      val offset = loadAddress % 0x4000
+      prgRom(prgOffsets(bank) + offset)
+    case saveRam if isSRam(address) => sRam(address - 0x6000)
+    case default => throw new IndexOutOfBoundsException(s"Unhandled mapper1 read at address: ${Integer.toHexString(default)}")
   }
 
   override def Step(): Unit = ()
@@ -52,12 +58,10 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
       chrRom(chrOffsets(bank) + offset) = value
     case prg if isPrg1(address) => loadRegister(prg, value)
     case saveRam if isSRam(address) => sRam(saveRam - sRamAddress) = value
-    case default => System.err.println(s"Unhandled mapper1 write at address: ${Integer.toHexString(default)}")
+    case default => throw new IndexOutOfBoundsException(s"Unhandled mapper1 write at address: ${Integer.toHexString(default)}")
   }
 
-  private def resetShiftRegister = 0x10
-
-  private def loadRegister(address: Int, value: Int) {
+  private def loadRegister(address: Int, value: Int) = {
     if ((value & 0x80) == 0x80) {
       shiftRegister = resetShiftRegister
       writeControl(control | 0x0C)
@@ -72,68 +76,72 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     }
   }
 
-  private def writeRegister(address: Int, value: Int) {
-    address match {
+  private def writeRegister(address: Int, value: Int) = address match {
       case controlSpace if address <= 0x9FFF => writeControl(value)
       case chr0Space if address <= 0xBFFF => writeCHRBank0(value)
       case chr1Space if address <= 0xDFFF => writeCHRBank1(value)
       case prgSpace if address <= 0xFFFF => writePRGBank(value)
-    }
   }
 
   // Control (internal, $8000-$9FFF)
-  private def writeControl(value: Int) {
+  private def writeControl(value: Int) = {
     control = value
     chrMode = (value >>> 4) & 1
     prgMode = (value >>> 2) & 3
-    value & 3 match {
-      case 0 => mirror = Mirror.Single0
-      case 1 => mirror = Mirror.Single1
-      case 2 => mirror = Mirror.Vertical
-      case 3 => mirror = Mirror.Horizontal
+    mirror = value & 3 match {
+                case 0 => Mirror.Single0
+                case 1 => Mirror.Single1
+                case 2 => Mirror.Vertical
+                case 3 => Mirror.Horizontal
     }
     updateOffsets()
   }
 
   // CHR bank 0 (internal, $A000-$BFFF)
-  private val writeCHRBank0: Int => Unit = x => chrBank0 = x
-  updateOffsets()
+  private def writeCHRBank0(x: Int):Unit = {
+    chrBank0 = x
+    updateOffsets()
+  }
 
   // CHR bank 1 (internal, $C000-$DFFF)
-  private val writeCHRBank1: Int => Unit = x => chrBank1 = x
-  updateOffsets()
+  private def writeCHRBank1(x: Int):Unit = {
+    chrBank1 = x
+    updateOffsets()
+  }
 
-  private val writePRGBank: Int => Unit = x => prgBank = x & 0x0F
-  updateOffsets()
+  private def writePRGBank(x: Int):Unit = {
+    prgBank = x & 0x0F
+    updateOffsets()
+  }
 
   private def chrBankOffset(index: Int): Int = {
     val bankLength = chrRom.length
-    val offset = findOffset(if (index >= 0x80) index - 0x100 else index, bankLength, 0x1000)
+    val y = if (index >= 0x80) index - 0x100 else index
+    val offset = findOffset(y, bankLength, 0x1000)
 
-    if (offset < 0) return offset + bankLength
-
-    offset
+    if (offset < 0) offset + bankLength
+    else offset
   }
 
   private def prgBankOffset(index: Int): Int = {
     val bankLength = prgRom.length
-    val offset = findOffset(if (index >= 0x80) index - 0x100 else index, bankLength, 0x4000)
+    val y = if (index >= 0x80) index - 0x100 else index
+    val offset = findOffset(y, bankLength, 0x4000)
 
-    if (offset < 0) return offset + bankLength
-
-    offset
+    if (offset < 0) offset + bankLength
+    else offset
   }
 
-  private def findOffset(index: Int, bankLength: Int, location: Int) = (index % bankLength / location) * location
+  private def findOffset(index: Int, bankLength: Int, location: Int) = (index % (bankLength / location)) * location
 
   // PRG ROM bank mode (0, 1: switch 32 KB at $8000, ignoring low bit of bank number;
   //                    2: fix first bank at $8000 and switch 16 KB bank at $C000;
   //                    3: fix last bank at $C000 and switch 16 KB bank at $8000)
   // CHR ROM bank mode (0: switch 8 KB at a time; 1: switch two separate 4 KB banks)
   private def updateOffsets() = {
-      prgMode match {
+    prgMode match {
       case 0 | 1 =>
-        prgOffsets(0) = prgBankOffset(prgMode & 0xFE)
+        prgOffsets(0) = prgBankOffset(prgBank & 0xFE)
         prgOffsets(1) = prgBankOffset(prgBank | 0x01)
       case 2 =>
         prgOffsets(0) = 0

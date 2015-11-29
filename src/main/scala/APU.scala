@@ -116,7 +116,7 @@ case class APU(channel: (Float) => Unit) {
       if (length.value == 0) return 0
       if (Duty.table(duty.mode)(duty.value) == 0) return 0
       if (timer.period < 8 || timer.period > 0x7FF) return 0
-      // if (!sweepNegate && timerPeriod+(timerPeriod>>p.sweepShift) > 0x7FF) return 0
+      // if (!sweepNegate && timerPeriod + (timerPeriod >> sweepShift) > 0x7FF) return 0
 
       if (envelope.enabled) envelope.volume
       else constantVolume
@@ -278,9 +278,7 @@ case class APU(channel: (Float) => Unit) {
       if (tickValue == 0) {
         tickValue = tickPeriod
         stepShifter()
-      } else {
-        tickValue -= 1
-      }
+      } else tickValue -= 1
     }
 
 

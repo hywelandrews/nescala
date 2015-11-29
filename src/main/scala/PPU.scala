@@ -512,7 +512,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     lowTileByte = Read(address) & 0xFF
     highTileByte = Read((address + 8) & 0xFFFF) & 0xFF
     var data = 0
-    for (i <- 0 to 7) {
+    for (i <- 0 until 8) {
       var p1, p2 = 0
       if ((attributes & 0x40) == 0x40) {
         p1 = ((lowTileByte & 1) << 0) & 0xFF

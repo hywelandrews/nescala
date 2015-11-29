@@ -42,19 +42,17 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
     val (x, y) = if (s1 >= s2) (f * s2 / s1, f)
                  else (f, f * s1 / s2)
 
-    GL11.glViewport(0, 0, w, h)
+    gl.viewport(0, 0, w, h)
 
-    GL11.glBegin(GL11.GL_QUADS);
-    {
-      GL11.glTexCoord2f(0, 1)
-      GL11.glVertex2f(-x, -y)
-      GL11.glTexCoord2f(1, 1)
-      GL11.glVertex2f(x, -y)
-      GL11.glTexCoord2f(1, 0)
-      GL11.glVertex2f(x, y)
-      GL11.glTexCoord2f(0, 0)
-      GL11.glVertex2f(-x, y)
-    }
+    GL11.glBegin(GL11.GL_QUADS)
+    GL11.glTexCoord2f(0, 1)
+    GL11.glVertex2f(-x, -y)
+    GL11.glTexCoord2f(1, 1)
+    GL11.glVertex2f(x, -y)
+    GL11.glTexCoord2f(1, 0)
+    GL11.glVertex2f(x, y)
+    GL11.glTexCoord2f(0, 0)
+    GL11.glVertex2f(-x, y)
     GL11.glEnd()
   }
 
