@@ -28,7 +28,7 @@ class Audio {
 
   def stop() = output.foreach(x => x.close())
 
-  def receive(sample:Float) = output.filter(_.available() >= 4).foreach{sdl =>
+  def receive(sample:Float) = output.withFilter(_.available() >= 4).foreach{ sdl =>
     val channel = buffer.putFloat(sample * 0.8F).array()
     buffer.rewind()
     sdl.write(channel, 0, 4)

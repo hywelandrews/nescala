@@ -263,17 +263,18 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   private def spritePixel(): (Int, Int) = {
+    var pixel = (0, 0)
     if (flagShowSprites != 0) {
-      val default = for {i <- 0 until spriteCount
-                         offset = (cycle - 1) - spritePositions(i)
-                         if offset >= 0 && offset <= 7
-                         nextOffset = 7 - offset
-                         color = (spritePatterns(i) >> ((nextOffset * 4) & 0xFF) & 0x0F) & 0xFF
-                         if color % 4 != 0
-                    } yield (i, color)
-
-      default.foldLeft((0,0)){ case (any, (i, color)) => (i, color)}
-    } else (0, 0)
+      for (i <- 0 until spriteCount){
+           val offset = (cycle - 1) - spritePositions(i)
+           if (offset >= 0 && offset <= 7) {
+             val nextOffset = 7 - offset
+             val color = (spritePatterns(i) >> ((nextOffset * 4) & 0xFF) & 0x0F) & 0xFF
+             if (color % 4 != 0) pixel = (i, color)
+           }
+      }
+    }
+    pixel
   }
 
   private def renderPixel() {
@@ -465,14 +466,13 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
             else 16
     var count = 0
 
-    for {
-      i <- 0 until 64
-      y = oamData(i * 4 + 0) & 0xFF
-      a = oamData(i * 4 + 2) & 0xFF
-      x = oamData(i * 4 + 3) & 0xFF
-      row = scanLine - y
-      if row >= 0 && row < h
-    } yield {
+    for(i <- 0 until 64) {
+      val y = oamData(i * 4 + 0) & 0xFF
+      val a = oamData(i * 4 + 2) & 0xFF
+      val x = oamData(i * 4 + 3) & 0xFF
+      val row = scanLine - y
+
+      if (row >= 0 && row < h) {
         if (count < 8) {
           spritePatterns(count) = fetchSpritePattern(i, row)
           spritePositions(count) = x
@@ -480,6 +480,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
           spriteIndexes(count) = i & 0xFF
         }
         count += 1
+      }
     }
 
     if (count > 8) {
