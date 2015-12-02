@@ -24,7 +24,7 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
 
     for (i <- 0L until ppuCycles) {
       ppu.Step(cpu.triggerNMI)
-      mapper.Step()
+      mapper.Step(ppu.Cycle, ppu.ScanLine, ppu.ShowBackground, ppu.ShowSprites, cpu.triggerIRQ)
     }
 
     for (i <- 0L until cpuCycles) {
@@ -36,8 +36,8 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
 
   def StepFrame(): Long = {
     var cpuCycles = 0L
-    val frame = ppu.frame
-    while (frame == ppu.frame) cpuCycles += Step()
+    val frame = ppu.Frame
+    while (frame == ppu.Frame) cpuCycles += Step()
     cpuCycles
   }
 
@@ -46,7 +46,7 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
     while (cycles > 0) cycles = cycles - Step()
   }
 
-  def VideoBuffer() = ppu.front
+  def VideoBuffer() = ppu.Front
 
   @tailrec
   def Run():Unit = {
@@ -67,6 +67,11 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
   }
 
   def SetButtons(buttons:Map[Int, Boolean]) = controller1.SetButtons(buttons)
+
+  def Reset = {
+    cpu.Reset()
+    ppu.Reset()
+  }
 }
 
 object Console
@@ -97,7 +102,7 @@ object Console
   }
 
   def apply(filename:String, audio:Audio): Console = {
-    // Load as Cartridge
+
     val cartridge = Cartridge(filename)
     val ram = Array.fill(2048)(0)
     val controller1 = Controller()

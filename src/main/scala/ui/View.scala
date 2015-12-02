@@ -4,7 +4,7 @@ import java.awt.Canvas
 
 import nescala.{Console, Controller}
 import org.lwjgl.input.Keyboard
-import org.lwjgl.opengl.{Display, GL11}
+import org.lwjgl.opengl.GL11
 import org.macrogl.Macrogl
 
 object Start
@@ -12,6 +12,7 @@ object Start
 trait View {
   def Open()(implicit gl: Macrogl)
   def Close()
+  def Reset()
   def Update(dt:Double)(implicit gl: Macrogl)
 }
 
@@ -57,12 +58,12 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
   }
 
   override def Open()(implicit gl: Macrogl): Unit = {
+    audio.start()
     gl.clearColor(0, 0, 0, 1)
     gl.enable(Macrogl.TEXTURE_2D)
   }
 
   override def Close(): Unit = {
-    Display.destroy()
     audio.stop()
   }
 
@@ -104,10 +105,12 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
   }
 
   private def updateControllers = {
-    val turbo = (console.ppu.frame % 6) < 3
+    val turbo = (console.ppu.Frame % 6) < 3
 //    val j1 = readJoystick(Joystick1, turbo)
 //    val j2 = readJoystick(Joystick2, turbo)
     console.controller1.SetButtons(readKeys(turbo))
     console.controller2.SetButtons(readJoystick(turbo))
   }
+
+  override def Reset(): Unit = console.Reset
 }

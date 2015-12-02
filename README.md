@@ -29,6 +29,7 @@ The following mappers have been implemented:
 * MMC1 (1)
 * UNROM (2)
 * CNROM (3)
+* MMC3 (4)
 
 ### Known Issues
 

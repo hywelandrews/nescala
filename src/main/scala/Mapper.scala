@@ -3,7 +3,7 @@ package nescala
 trait Mapper {
   def Read(address:Int): Int
   def Write(address:Int, value: Int)
-  def Step()
+  def Step(ppuCycle:Long, ppuScanLine:Long, ppuFlagShowBackground:Int, ppuFlagShowSprites:Int, triggerIRQHandler: => Unit) : Unit = ()
   val sRamAddress = 0x6000
   val isChr: Int => Boolean = x => x < 0x2000
   val isPrg1: Int => Boolean = x => x >= 0x8000
@@ -25,6 +25,7 @@ object Mapper {
       case 0 | 2 => Mapper2(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 1     => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 3     => Mapper3(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 4     => Mapper4(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case unsupported => throw new Exception(s"Unhandled mapper: $unsupported")
     }
   }
@@ -50,8 +51,6 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     case saveRam if isSRam(address) => sRam(address - 0x6000)
     case default => throw new IndexOutOfBoundsException(s"Unhandled mapper1 read at address: ${Integer.toHexString(default)}")
   }
-
-  override def Step(): Unit = ()
 
   override def Write(address: Int, value: Int): Unit = address match {
     case chr if isChr(address) =>
@@ -183,8 +182,6 @@ case class Mapper2(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     case default => System.err.println(s"Unhandled mapper2 read at address: ${Integer.toHexString(default)}"); throw new Exception
   }
 
-  override def Step(): Unit = ()
-
   override def Write(address: Int, value: Int): Unit = address match {
     case chr if isChr(address) => chrRom(address) = value
     case prg1 if isPrg1(address) => prgBank1 = value % prgBanks
@@ -226,8 +223,161 @@ case class Mapper3(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     case saveRam if isSRam(address) =>
         val index = address - 0x6000
         sRam(index) = value
-    case default => System.err.println(s"Unhandled mapper2 read at address: ${Integer.toHexString(default)}"); throw new Exception
+    case default => System.err.println(s"Unhandled mapper3 read at address: ${Integer.toHexString(default)}"); throw new Exception
+  }
+}
+
+case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+
+  var register   = 0
+  var registers  = Array.fill[Int](8)(0)
+  var prgMode    = 0
+  var chrMode    = 0
+  var prgOffsets = Array(prgBankOffset(0), prgBankOffset(1), prgBankOffset(-2), prgBankOffset(-1))
+  var chrOffsets = Array.fill[Int](8)(0)
+  var reload     = 0
+  var counter    = 0
+  var irqEnable  = false
+
+  private def prgBankOffset(index:Int): Int = {
+    var i = index
+    if (i >= 0x80) i -= 0x100
+    i %= prgRom.length / 0x2000
+    var offset = i * 0x2000
+    if (offset < 0) offset += prgRom.length
+    offset
   }
 
-  def Step() = ()
+  override def Read(address:Int): Int =  address match {
+    case chr if isChr(address) =>
+      val bank = address / 0x0400
+      val offset = address % 0x0400
+      chrRom(chrOffsets(bank) + offset)
+    case prg1 if isPrg1(address) =>
+      val addressOffset = (address - 0x8000) & 0xFFFF
+      val bank = addressOffset / 0x2000
+      val offset = addressOffset % 0x2000
+      prgRom(prgOffsets(bank) + offset)
+    case saveRam if address >= 0x6000 =>
+      val index = (address - 0x6000) & 0xFFFF
+      sRam(index)
+    case default => System.err.println(s"Unhandled mapper4 write at address: ${Integer.toHexString(default)}"); 0
+  }
+
+  override def Write(address: Int, value: Int): Unit = address match {
+    case chr if isChr(address) =>
+     val bank = address / 0x0400
+     val offset = address % 0x0400
+     chrRom(chrOffsets(bank + offset)) = value
+    case prg1 if isPrg1(address) => writeRegister(address, value)
+    case saveRam if isSRam(address) =>
+      val index = address - 0x6000
+      sRam(index) = value
+    case default => System.err.println(s"Unhandled mapper4 read at address: ${Integer.toHexString(default)}"); throw new Exception
+  }
+
+  private def writeRegister(address:Int, value:Int) = address match {
+      case bankSelect if address <= 0x9FFF && address % 2 == 0 => writeBankSelect(value)
+      case bankData   if address <= 0x9FFF && address % 2 == 1 => writeBankData(value)
+      case setMirror  if address <= 0xBFFF && address % 2 == 0 => writeMirror(value)
+      case protect    if address <= 0xBFFF && address % 2 == 1 => writeProtect(value)
+      case irqLatch   if address <= 0xDFFF && address % 2 == 0 => writeIRQLatch(value)
+      case reloadIrq  if address <= 0xDFFF && address % 2 == 1 => writeIRQReload(value)
+      case disableIrq if address <= 0xFFFF && address % 2 == 0 => writeIRQDisable(value)
+      case enableIrq  if address <= 0xFFFF && address % 2 == 1 => writeIRQEnable(value)
+  }
+
+  private def writeBankSelect(value:Int) = {
+    prgMode = (value >> 6) & 1
+    chrMode = (value >> 7) & 1
+    register = value & 7
+    updateOffsets()
+  }
+
+  private def writeBankData(value:Int) = {
+    registers(register) = value
+    updateOffsets()
+  }
+
+  private def writeMirror(value:Int) = value & 1 match {
+      case 0 => mirror = Mirror.Vertical
+      case 1 => mirror = Mirror.Horizontal
+  }
+
+  private def writeProtect(value:Int) = ()
+
+  private def writeIRQLatch(value:Int) = reload = value
+
+  private def writeIRQReload(value:Int) = counter = 0
+
+  private def writeIRQDisable(value:Int) = irqEnable = false
+
+  private def writeIRQEnable(value:Int) = irqEnable = true
+
+  private def chrBankOffset(index:Int): Int = {
+    var i = index
+    if (i >= 0x80) {
+      i -= 0x100
+    }
+    i %= chrRom.length / 0x0400
+    var offset = index * 0x0400
+    if (offset < 0) {
+      offset += chrRom.length
+    }
+    offset
+  }
+
+  private def updateOffsets() = {
+
+    prgMode match {
+      case 0 =>
+        prgOffsets(0) = prgBankOffset(registers(6))
+        prgOffsets(1) = prgBankOffset(registers(7))
+        prgOffsets(2) = prgBankOffset(-2)
+        prgOffsets(3) = prgBankOffset(-1)
+      case 1 =>
+        prgOffsets(0) = prgBankOffset(-2)
+        prgOffsets(1) = prgBankOffset(registers(7))
+        prgOffsets(2) = prgBankOffset(registers(6))
+        prgOffsets(3) = prgBankOffset(-1)
+    }
+
+    chrMode match {
+      case 0 =>
+        chrOffsets(0) = chrBankOffset(registers(0) & 0xFE)
+        chrOffsets(1) = chrBankOffset(registers(0) | 0x01)
+        chrOffsets(2) = chrBankOffset(registers(1) & 0xFE)
+        chrOffsets(3) = chrBankOffset(registers(1) | 0x01)
+        chrOffsets(4) = chrBankOffset(registers(2))
+        chrOffsets(5) = chrBankOffset(registers(3))
+        chrOffsets(6) = chrBankOffset(registers(4))
+        chrOffsets(7) = chrBankOffset(registers(5))
+      case 1 =>
+       chrOffsets(0) = chrBankOffset(registers(2))
+       chrOffsets(1) = chrBankOffset(registers(3))
+       chrOffsets(2) = chrBankOffset(registers(4))
+       chrOffsets(3) = chrBankOffset(registers(5))
+       chrOffsets(4) = chrBankOffset(registers(0) & 0xFE)
+       chrOffsets(5) = chrBankOffset(registers(0) | 0x01)
+       chrOffsets(6) = chrBankOffset(registers(1) & 0xFE)
+       chrOffsets(7) = chrBankOffset(registers(1) | 0x01)
+    }
+  }
+
+  override def Step(ppuCycle:Long, ppuScanLine:Long, ppuFlagShowBackground:Int, ppuFlagShowSprites:Int, triggerIRQHandler: => Unit):Unit = {
+
+    if (ppuCycle != 280) return
+    if (ppuScanLine > 239 && ppuScanLine < 261) return
+    if (ppuFlagShowBackground == 0 && ppuFlagShowSprites == 0) return
+    handleScanLine(triggerIRQHandler)
+  }
+
+
+  private def handleScanLine(triggerIRQHandler: => Unit) {
+    if (counter == 0) counter = reload
+    else {
+      counter = (counter - 1) & 0xFF
+      if (counter == 0 && irqEnable) triggerIRQHandler
+    }
+  }
 }

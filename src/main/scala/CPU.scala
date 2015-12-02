@@ -619,7 +619,7 @@ case class CPU(memory:CPUMemory) {
     val pFormat = f"P:${formatHex(flags)}%-2s"
     val spFormat = f"SP:${formatHex(registers.sp)}%-2s"
     val cycFormat = f"CYC:${(cycles * 3) % 341}%3d"
-    val slFormat = f"SL:${memory.ppu.scanLine}%-3d"
+    val slFormat = f"SL:${memory.ppu.ScanLine}%-3d"
 
     f"$pcFormat  $rawInstructionFormat ${if(pageCrossed) "*" else ""}$name $instructionParameterFormat $aFormat $xFormat $yFormat $pFormat $spFormat $cycFormat $slFormat"
   }

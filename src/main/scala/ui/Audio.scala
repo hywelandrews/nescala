@@ -22,11 +22,12 @@ class Audio {
   val output = Try {
     val sdl = AudioSystem.getSourceDataLine(format)
     sdl.open(format, samplesPerFrame * 4 /*frame*/ * 2 /*ch*/ * 2 /*bytes/sample*/)
-    sdl.start()
     sdl
   }
 
-  def stop() = output.foreach(x => x.close())
+  def start() = output.foreach(x => x.start())
+
+  def stop() = output.foreach(x => x.stop())
 
   def receive(sample:Float) = output.withFilter(_.available() >= 4).foreach{ sdl =>
     val channel = buffer.putFloat(sample * 0.8F).array()

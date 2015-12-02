@@ -9,16 +9,10 @@ import org.macrogl.Macrogl
 import scala.swing.Dialog
 import scala.util.{Failure, Success, Try}
 
-case class Director(window : Canvas, audio: Audio, var view: Option[View] = None,  var menuView : Option[View] = None)(implicit gl:Macrogl) {
+case class Director(window : Canvas, audio: Audio)(implicit gl:Macrogl) {
 
   var timestamp = 0L
-
-  def SetView(view : Option[View]) {
-    this.view.foreach(_.Close())
-    this.view = view
-    this.view.foreach(_.Open())
-    timestamp = System.nanoTime()
-  }
+  var view: Option[View] = None
 
   def Step() {
     gl.clear(Macrogl.COLOR_BUFFER_BIT)
@@ -29,17 +23,30 @@ case class Director(window : Canvas, audio: Audio, var view: Option[View] = None
     view.foreach(_.Update(seconds))
   }
 
+  def Reset = view.foreach(x => x.Reset())
+
+  def Close = setView(None)
+
   def Start(path: String) = loadView(path) match {
             case Success(_) => run()
             case Failure(e) => Dialog.showMessage(new {def peer = window.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
   }
 
-  private def loadView(path: String) = Try(nescala.Console(path, audio)).map(console => SetView(Some(GameView(console, audio, window))))
+  private def loadView(path: String) = Try(nescala.Console(path, audio)).map(console => setView(Some(GameView(console, audio, window))))
 
-  private def run() = while (!Display.isCloseRequested) {
-      Step()
-      Display.update(true)
+  private def setView(view : Option[View]) {
+    this.view.foreach(_.Close())
+    this.view = view
+    this.view.foreach(_.Open())
+    timestamp = System.nanoTime()
   }
 
-  def Close = SetView(None)
+  private def run() = {
+    while (view.isDefined) {
+      Step()
+      Display.sync(60)
+      Display.update(true)
+    }
+    Display.destroy()
+  }
 }

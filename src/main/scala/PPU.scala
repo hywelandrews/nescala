@@ -8,11 +8,11 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   private var cycle = 0
   // 0-340
-  var scanLine = 0
+  private var scanLine = 0
   // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
-  var frame = 0L // frame counter
+  private var frame = 0L // frame counter
 
-  var front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+  private var front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
   private val back = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
 
   private val oamData = Array.fill(256)(0)
@@ -81,6 +81,18 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     writeMask(0)
     writeOAMAddress(0)
   }
+
+  def ShowBackground = flagShowBackground
+
+  def ShowSprites = flagShowSprites
+
+  def ScanLine = scanLine
+
+  def Cycle = cycle
+
+  def Frame = frame
+
+  def Front = front
 
   // $2000: PPUCTRL
   private def writeControl(value: Int) = {
