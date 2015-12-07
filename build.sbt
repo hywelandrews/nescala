@@ -12,7 +12,9 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
-                            "com.storm-enroute" %% "macrogl" % "0.4-SNAPSHOT")
+                            "com.typesafe" % "config" % "1.3.0",
+                            "com.storm-enroute" %% "macrogl" % "0.4-SNAPSHOT",
+                            "com.yuvimasory" % "orange-extensions" % "1.3.0")
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
@@ -26,4 +28,3 @@ lazy val root = (project in file(".")).
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "nescala"
   )
-

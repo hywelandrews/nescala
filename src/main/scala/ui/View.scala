@@ -1,22 +1,28 @@
 package ui
 
-import java.awt.Canvas
+import java.awt._
+import javax.swing.ImageIcon
+import javax.swing.border.EmptyBorder
 
-import nescala.{Console, Controller}
+import helpers.{File, Rom, Settings, Thumbnail}
+import nescala.{Cartridge, Console, Controller}
 import org.lwjgl.input.Keyboard
 import org.lwjgl.opengl.GL11
 import org.macrogl.Macrogl
 
-object Start
+import scala.collection.mutable
+import scala.swing.event.{MouseEntered, MouseExited}
+import scala.swing.{Button, _}
+import scala.util.Try
 
 trait View {
-  def Open()(implicit gl: Macrogl)
+  def Open()
   def Close()
   def Reset()
-  def Update(dt:Double)(implicit gl: Macrogl)
+  def Update(dt:Double)
 }
 
-case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
+case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Macrogl) extends View {
   val width = 256
   val padding = 0
 
@@ -33,7 +39,29 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
     Controller.ButtonRight  -> false
   )
 
-  def drawBuffer()(implicit gl: Macrogl) {
+  override def Open(): Unit = {
+    audio.start()
+    gl.clearColor(0, 0, 0, 1)
+    gl.enable(Macrogl.TEXTURE_2D)
+  }
+
+  override def Close(): Unit = {
+    audio.stop()
+  }
+
+  override def Update(dt:Double): Unit = {
+    val seconds = if (dt > 1) 0 else dt
+    updateControllers
+    console.StepSeconds(seconds)
+    gl.bindTexture(Macrogl.TEXTURE_2D, texture)
+    Texture.setTexture(console.VideoBuffer())
+    drawBuffer()
+    gl.bindTexture(Macrogl.TEXTURE_2D, 0)
+  }
+
+  override def Reset(): Unit = console.Reset
+
+  private def drawBuffer() {
     val frameBounds = window.getBounds
     val h = frameBounds.height
     val w = frameBounds.width
@@ -57,26 +85,6 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
     GL11.glEnd()
   }
 
-  override def Open()(implicit gl: Macrogl): Unit = {
-    audio.start()
-    gl.clearColor(0, 0, 0, 1)
-    gl.enable(Macrogl.TEXTURE_2D)
-  }
-
-  override def Close(): Unit = {
-    audio.stop()
-  }
-
-  override def Update(dt:Double)(implicit gl: Macrogl): Unit = {
-    val seconds = if (dt > 1) 0 else dt
-    updateControllers
-    console.StepSeconds(seconds)
-    gl.bindTexture(Macrogl.TEXTURE_2D, texture)
-    Texture.setTexture(console.VideoBuffer())
-    drawBuffer()
-    gl.bindTexture(Macrogl.TEXTURE_2D, 0)
-  }
-
   private def readKeys(turbo:Boolean):Map[Int, Boolean] = Map(
     Controller.ButtonA      -> Keyboard.isKeyDown(Keyboard.KEY_Z),
     Controller.ButtonB      -> Keyboard.isKeyDown(Keyboard.KEY_X),
@@ -88,7 +96,7 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
     Controller.ButtonRight  -> Keyboard.isKeyDown(Keyboard.KEY_RIGHT)
   )
 
-  def readJoystick(turbo:Boolean) = {
+  private def readJoystick(turbo:Boolean) = {
 
     defaultJoystick
 //    val axes = GetJoystickAxes(joy)
@@ -111,6 +119,90 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
     console.controller1.SetButtons(readKeys(turbo))
     console.controller2.SetButtons(readJoystick(turbo))
   }
+}
 
-  override def Reset(): Unit = console.Reset
+case class MenuView(window: WrapPanel) extends View {
+
+  private val fileDisplay = mutable.Map[String, Rom]()
+  implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
+
+  override def Open(): Unit = {
+    window.visible = true
+    window.contents ++= (Settings.gameLibrary match {
+      case Some(gameLibraryPath) => openGameLibrary(gameLibraryPath)
+      case None => Iterable(selectGameLibrary("Select game library"))
+    })
+  }
+  // Update to page dt of roms
+  override def Update(dt: Double): Unit = ()
+  // Remove view elements
+  override def Close(): Unit = {
+    window.contents.clear()
+    window.peer.revalidate()
+    window.visible = false
+  }
+  // Close & Re-Open
+  override def Reset(): Unit = {
+    Close()
+    Open()
+  }
+
+  private def selectGameLibrary(message:String) = new Button {
+    border = new EmptyBorder(10, 0, 0, 0)
+    opaque = false
+    foreground = new Color(192,197,206)
+    cursor = new Cursor(Cursor.HAND_CURSOR)
+    action = Action(s"<html>$message</html>")(openFileDialog)
+    listenTo(mouse.moves)
+    reactions += {
+      case MouseEntered(s, p, m) => foreground = Color.WHITE
+      case MouseExited(s, p, m) => foreground = new Color(192,197,206)
+    }
+  }
+
+  private def openFileDialog = {
+    val fileChooser = new FileChooser(){
+      title = "Select Game Library"
+      fileSelectionMode = FileChooser.SelectionMode.DirectoriesOnly
+      peer.setCurrentDirectory(new java.io.File(Settings.lastFileSelectDirectory))
+    }
+
+    if(fileChooser.showOpenDialog(null) == FileChooser.Result.Approve){
+      Settings.gameLibrary = fileChooser.selectedFile.getAbsolutePath
+      Reset()
+    } else None
+  }
+
+  private def gameIcon(name:String, image:ImageIcon, filePath:String) = new Button(name){
+    opaque = false
+    contentAreaFilled = false
+    border = new EmptyBorder(0, 0, 0, 0)
+    action = Action(name)(Run.StartDisplay(filePath))
+    icon = image
+    iconTextGap = 5
+    font = new Font("Lucida Grande", Font.BOLD, 10)
+    foreground = Color.WHITE
+    preferredSize = new swing.Dimension(Thumbnail.x  + Thumbnail.padding, Thumbnail.y + Thumbnail.padding)
+    verticalTextPosition = Alignment.Bottom
+    horizontalTextPosition = Alignment.Center
+  }
+
+  private def openGameLibrary(path:String): Iterable[Button] = {
+    val romFolder = new java.io.File(path)
+    val romFiles = romFolder.listFiles(File.Filter)
+    val thumbnail = new Thumbnail(window.background)
+
+    romFiles map { file =>
+        Try(Cartridge(file.getAbsolutePath)) map { cartridge =>
+          fileDisplay(cartridge.CRC) = Rom(cartridge.CRC, file.getName, file.getAbsolutePath, thumbnail)
+        }
+    }
+
+    if (fileDisplay.isEmpty) Iterable(selectGameLibrary("No games found. Select game library"))
+    else fileDisplay.map { case (crc, rom) =>
+      val icon = gameIcon(rom.title, new ImageIcon(rom.thumbnail), rom.path)
+      icon.peer.setText(rom.title) // Needed because adding Actions to Buttons overwrites their text
+      icon
+    }
+  }
 }

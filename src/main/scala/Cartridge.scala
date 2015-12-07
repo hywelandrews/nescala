@@ -1,27 +1,26 @@
 package nescala
 
-import java.io.FileInputStream
+import java.io.{IOException, FileInputStream}
+import java.util.zip.CRC32
 
 import scala.util.{Failure, Try}
-/**
- * Created by Hywel on 4/14/15.
- */
+
 final case class Cartridge(private val path:String) {
 
-  private val headerSize = 16
+  private val headerSize  = 16
   private val trainerSize = 512
-  private val prgRomSize = 16384
-  private val chrRomSize = 8192
+  private val prgRomSize  = 16384
+  private val chrRomSize  = 8192
 
   case class iNesHeader(file:Array[Int]) {
     private val fileMagic = 0x4E45531A
-    val Magic:Int = Integer.parseInt(file.take(4).map(Integer.toHexString).reduce(_ + _), 16)
-    val NumPRG:Int = file(4)
-    val NumCHR:Int = file(5)
-    val Control1:Int = file(6)
-    val Control2:Int = file(7)
-    val NumRam:Int = file(8)
-    val Padding:Array[Int] = file.slice(9, 15)
+    val Magic     = Integer.parseInt(file.take(4).map(Integer.toHexString).reduce(_ + _), 16)
+    val NumPRG    = file(4)
+    val NumCHR    = file(5)
+    val Control1  = file(6)
+    val Control2  = file(7)
+    val NumRam    = file(8)
+    val Padding   = file.slice(9, 15)
 
     if (Magic != fileMagic) throw new IllegalArgumentException("Invalid iNes file")
 
@@ -30,13 +29,15 @@ final case class Cartridge(private val path:String) {
 
   private val rom = if (!path.endsWith(".nes")) Failure(new IllegalArgumentException("Invalid filename")) else Try(new FileInputStream(path))
 
-  private val byteArray = rom.map { validFile =>
-    Stream.continually(validFile.read)
-    .takeWhile(x => x != -1)
-    .toArray
-  }.getOrElse(throw new RuntimeException(s"Unable to load rom file: $path"))
+  private val raw = rom.map { validFile =>
+    Iterator.continually(validFile.read).takeWhile(x => x != -1).toArray
+  }.getOrElse(throw new IOException(s"Unable to load rom file: $path"))
 
-  val Header = iNesHeader(byteArray.take(headerSize))
+  lazy val Header = iNesHeader(raw.take(headerSize))
+
+  lazy val CRC = new CRC32() {
+    update(raw.map(_.toByte).takeRight(raw.length - headerSize))
+  }.getValue.toHexString.toUpperCase
 
   val Mapper = Header.Control1 >> 4 | Header.Control2 >>> 4 << 1
 
@@ -50,20 +51,21 @@ final case class Cartridge(private val path:String) {
 
   val Trainer = if(HasTrainer) {
     offset += trainerSize
-    byteArray.slice(offset, offset + trainerSize)
+    raw.slice(offset, offset + trainerSize)
   } else Array.fill(trainerSize){0}
 
-  val PrgRom = byteArray.slice(offset, offset + Header.NumPRG * prgRomSize)
+  val PrgRom = raw.slice(offset, offset + Header.NumPRG * prgRomSize)
 
   offset += (Header.NumPRG * prgRomSize)
 
   val ChrRom = if (Header.NumCHR == 0) Array.fill(chrRomSize){0}
-               else byteArray.slice(offset, offset + Header.NumCHR * chrRomSize)
+               else raw.slice(offset, offset + Header.NumCHR * chrRomSize)
 
-  val SRam = new Array[Int](0x2000)
+  val SRam = Array.fill[Int](0x2000)(0)
 
   override def toString =
-    s"""Mapper: $Mapper
+    s"""CRC: $CRC
+       |Mapper: $Mapper
        |Mirror: $Mirror
        |Battery: $Battery""".stripMargin
 }

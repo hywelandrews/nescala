@@ -149,7 +149,7 @@ case class CPU(memory:CPUMemory) {
     this.cycles - cycles
   }
 
-  def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {
+  private def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {
       case addressModes.Absolute => read16(pc + 1) -> false
       case addressModes.AbsoluteX => val addressOffsetX = (read16(pc + 1) + registers.x) & 0xFFFF
         addressOffsetX -> pagesDiffer(addressOffsetX - registers.x, addressOffsetX)
@@ -239,7 +239,7 @@ case class CPU(memory:CPUMemory) {
   private def pagesDiffer(a:Int, b:Int):Boolean = (a & 0xFF00) != (b & 0xFF00)
 
   // Flags returns the processor status flags
-  def flags:Int = {
+  private def flags:Int = {
     var flags = 0
     flags |= registers.c << 0
     flags |= registers.z << 1
@@ -263,7 +263,7 @@ case class CPU(memory:CPUMemory) {
   def triggerIRQ = if (registers.i == 0) interrupt = interrupts.IRQ
 
   //address, pc, mode
-  type Operation = (Int, Int, Byte) => Unit
+  private type Operation = (Int, Int, Byte) => Unit
 
   // addBranchCycles adds a cycle for taking a branch and adds another cycle
   // if the branch jumps to a new page
@@ -574,9 +574,9 @@ case class CPU(memory:CPUMemory) {
   private lazy val ahx, alr, anc, arr, axs, kil, las, shx, shy, tas, xaa:Operation = (address:Int, pc:Int, mode:Byte) => {}
 
   override def toString = {
-    val opcode = memory.Read(registers.pc)
-    val (bytes, name)  = (instructions(opcode).size, instructions(opcode).name)
-    val mode:Byte = instructions(opcode).mode
+    val opcode  = memory.Read(registers.pc)
+    val name    = instructions(opcode).name
+    val mode    = instructions(opcode).mode
     val (address, pageCrossed) = getAddressWithPageCrossed(registers.pc, mode)
 
     def formatHex(i: Int, size: Int = 2):String = Integer.toHexString(i).toUpperCase.reverse.padTo(size, 0).reverse.mkString.grouped(2).reduce{

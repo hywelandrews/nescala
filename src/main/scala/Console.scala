@@ -1,21 +1,10 @@
 package nescala
 
-import java.io.{File, PrintWriter}
+import java.io.PrintWriter
 
+import helpers.File
 import ui.Audio
-
 import scala.annotation.tailrec
-
-object FileHelper {
-  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
-    val p = new java.io.PrintWriter(f)
-    try {
-      op(p)
-    } finally {
-      p.close()
-    }
-  }
-}
 
 final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Mapper, val ppu:PPU, apu:APU, val controller1:Controller, val controller2:Controller) {
   private def Step(): Long ={
@@ -96,7 +85,7 @@ object Console
       case input if input == "r" => console.Run()
       case input if input == "s" => print(console.cpu); console.Step()
       case input if input == "q" => System.exit(1)
-      case input if input == "l" => FileHelper.printToFile(new File("nestest.log")) { p => console.Run(p)}
+      case input if input == "l" => File.Writer("nestest.log") { p => console.Run(p)}
       case _ => println(s"Invalid input, only r (Run) / s (Step) / l (Log) / q (Quit) commands are available")
     }
   }
