@@ -10,10 +10,9 @@ import org.lwjgl.input.Keyboard
 import org.lwjgl.opengl.GL11
 import org.macrogl.Macrogl
 
-import scala.collection.mutable
+import scala.concurrent.{Await, Future}
 import scala.swing.event.{MouseEntered, MouseExited}
 import scala.swing.{Button, _}
-import scala.util.Try
 
 trait View {
   def Open()
@@ -123,7 +122,6 @@ case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Ma
 
 case class MenuView(window: WrapPanel) extends View {
 
-  private val fileDisplay = mutable.Map[String, Rom]()
   implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
 
   override def Open(): Unit = {
@@ -189,17 +187,19 @@ case class MenuView(window: WrapPanel) extends View {
 
   private def openGameLibrary(path:String): Iterable[Button] = {
     val romFolder = new java.io.File(path)
-    val romFiles = romFolder.listFiles(File.Filter)
+    val romFiles = romFolder.listFiles(File.Filter).toList
     val thumbnail = new Thumbnail(window.background)
 
-    romFiles map { file =>
-        Try(Cartridge(file.getAbsolutePath)) map { cartridge =>
-          fileDisplay(cartridge.CRC) = Rom(cartridge.CRC, file.getName, file.getAbsolutePath, thumbnail)
-        }
-    }
+    import scala.concurrent.duration._
 
-    if (fileDisplay.isEmpty) Iterable(selectGameLibrary("No games found. Select game library"))
-    else fileDisplay.map { case (crc, rom) =>
+    val romResult = Await.result(Future.sequence(romFiles map { file =>
+        Future(Cartridge(file.getAbsolutePath)) map { cartridge =>
+          cartridge.CRC -> Rom(cartridge.CRC, file.getName, file.getAbsolutePath, thumbnail)
+        }
+    }), 2 minutes)
+
+    if (romResult.isEmpty) Iterable(selectGameLibrary("No games found. Select game library"))
+    else romResult.map { case (crc, rom) =>
       val icon = gameIcon(rom.title, new ImageIcon(rom.thumbnail), rom.path)
       icon.peer.setText(rom.title) // Needed because adding Actions to Buttons overwrites their text
       icon
