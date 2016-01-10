@@ -59,7 +59,7 @@ object Run extends SimpleSwingApplication {
 
   private lazy val gameMenu: MenuBar = new MenuBar {
     opaque = true
-    border = new EmptyBorder(0, 5, 0, 5)
+    border = new EmptyBorder(0, 5, 0, 15)
     background = mediumGrey
     preferredSize = new swing.Dimension(initialWindowSize.getWidth.toInt, 32)
     contents += gameMenuIcon("eject", Action("")(Eject))
@@ -72,15 +72,10 @@ object Run extends SimpleSwingApplication {
     visible = true
   }
 
-  val consoleControls = List("eject", "reload", "play", "pause")
+  private val consoleControlNames = List("eject", "reload", "play", "pause")
 
-  private def enableConsoleControls = {
-    gameMenu.contents.filter(x => consoleControls.contains(x.name)).foreach(_.enabled = true)
-  }
-
-  private def disableConsoleControls = {
-    gameMenu.contents.filter(x => consoleControls.contains(x.name)).foreach(_.enabled = false)
-  }
+  private def consoleControls(enable:Boolean) =
+    gameMenu.contents.filter(x => consoleControlNames.contains(x.name)).foreach(_.enabled = enable)
 
   private def gameMenuIcon(path:String, gameAction: Action, active: Boolean = false) = new Button {
     name = path
@@ -146,7 +141,7 @@ object Run extends SimpleSwingApplication {
     top.peer.add(scrollWrapper.peer)
     top.peer.pack()
     scrollWrapper.peer.requestFocus()
-    disableConsoleControls
+    consoleControls(enable = false)
     director.Menu
   }
 
@@ -156,7 +151,7 @@ object Run extends SimpleSwingApplication {
     top.peer.add(gameCanvas, BorderLayout.CENTER)
     top.peer.pack()
     gameCanvas.requestFocus()
-    enableConsoleControls
+    consoleControls(enable = true)
   }
 
   def OpenFolderDialog = {

@@ -2,6 +2,10 @@
 
 A NES emulator written in Scala.
 
+### Screenshots
+
+![Screenshots](http://i.imgur.com/PiG6XCD.jpg)
+
 ### How to run
 
     ~ sbt run 
