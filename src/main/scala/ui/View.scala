@@ -150,25 +150,12 @@ case class MenuView(window: WrapPanel) extends View {
     opaque = false
     foreground = new Color(192,197,206)
     cursor = new Cursor(Cursor.HAND_CURSOR)
-    action = Action(s"<html>$message</html>")(openFileDialog)
+    action = Action(s"<html>$message</html>")(Run.OpenFolderDialog)
     listenTo(mouse.moves)
     reactions += {
       case MouseEntered(s, p, m) => foreground = Color.WHITE
       case MouseExited(s, p, m) => foreground = new Color(192,197,206)
     }
-  }
-
-  private def openFileDialog = {
-    val fileChooser = new FileChooser(){
-      title = "Select Game Library"
-      fileSelectionMode = FileChooser.SelectionMode.DirectoriesOnly
-      peer.setCurrentDirectory(new java.io.File(Settings.lastFileSelectDirectory))
-    }
-
-    if(fileChooser.showOpenDialog(null) == FileChooser.Result.Approve){
-      Settings.gameLibrary = fileChooser.selectedFile.getAbsolutePath
-      Reset()
-    } else None
   }
 
   private def gameIcon(name:String, image:ImageIcon, filePath:String) = new Button(name){

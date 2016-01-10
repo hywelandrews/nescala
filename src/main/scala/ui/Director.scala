@@ -14,6 +14,7 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
   implicit val gl = org.macrogl.Macrogl.default
   var timestamp = 0L
   var view: Option[View] = None
+  var pause = false
 
   def Step() {
     gl.clear(Macrogl.COLOR_BUFFER_BIT)
@@ -29,6 +30,10 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
   def Reset = view.foreach(x => x.Reset())
 
   def Close = setView(None)
+
+  def Pause = pause = true
+
+  def Resume = pause = false
 
   def Start(path: String) = loadGameView(path) match {
             case Success(_) => run()
@@ -46,7 +51,7 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
 
   private def run() = {
     while (view.isDefined) {
-      Step()
+      if (!pause) Step()
       Display.sync(60)
       Display.update(true)
     }

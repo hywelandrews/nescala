@@ -5,12 +5,11 @@ import javax.swing._
 import javax.swing.border.EmptyBorder
 import javax.swing.filechooser.FileFilter
 
-import scala.swing.{Action, Dimension, Menu, MenuBar, MenuItem, _}
-
+import helpers.{File, Settings}
 import org.lwjgl.LWJGLException
 import org.lwjgl.opengl.Display
 
-import helpers.Settings
+import scala.swing.{Action, Dimension, MenuBar, _}
 
 object Run extends SimpleSwingApplication {
 
@@ -18,14 +17,10 @@ object Run extends SimpleSwingApplication {
   private val initialWindowSize = new Dimension(256 * scale, 240 * scale)
   private var filePath:Option[String] = None
   private var gameThread:Option[Thread] = None
-  private val director:Director = new Director(gameCanvas, menuPanel, new Audio)
+  private val director:Director = new Director(gameCanvas, gameLibrary, new Audio)
+  private def mediumGrey = new swing.Color(52,61,70)
 
   UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
-
-  //TODO: Move init Mac OSX native menu
-  System.setProperty("apple.laf.useScreenMenuBar", "true")
-  val app = com.apple.eawt.Application.getApplication
-  app.setDefaultMenuBar(mainMenuBar)
 
   override def startup(args: Array[String]) = {
     super.startup(args)
@@ -37,9 +32,9 @@ object Run extends SimpleSwingApplication {
     minimumSize = new Dimension(256, 240)
     size = initialWindowSize
     contents = scrollWrapper
-
     peer.setFocusable(true)
     peer.setLocationRelativeTo(null)
+    peer.add(gameMenu.peer, java.awt.BorderLayout.SOUTH)
     pack()
 
     override def closeOperation() {
@@ -48,29 +43,59 @@ object Run extends SimpleSwingApplication {
     }
   }
 
-  private lazy val resetMenuItem = new MenuItem(Action("Reset")(director.Reset)) {
-    enabled = false
-  }
-
-  private lazy val mainMenuBar = new MenuBar {
-    contents += new Menu("File") {
-      contents += new MenuItem(Action("Load Rom")(openFileDialog.foreach(StartDisplay)))
-      contents += resetMenuItem
-    }
-  }.peer
-
   private lazy val scrollWrapper = new ScrollPane {
-    contents = menuPanel
+    contents = gameLibrary
     preferredSize = initialWindowSize
     border = new EmptyBorder(0, 0, 0, 0)
     horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
     verticalScrollBarPolicy = ScrollPane.BarPolicy.AsNeeded
   }
 
-  private lazy val menuPanel: WrapPanel = new WrapPanel(initialWindowSize.getWidth.toInt) {
+  private lazy val gameLibrary: WrapPanel = new WrapPanel(initialWindowSize.getWidth.toInt) {
     visible = true
     border = new EmptyBorder(5, 5, 10, 5)
-    background = new swing.Color(52,61,70)
+    background = mediumGrey
+  }
+
+  private lazy val gameMenu: MenuBar = new MenuBar {
+    opaque = true
+    border = new EmptyBorder(0, 5, 0, 5)
+    background = mediumGrey
+    preferredSize = new swing.Dimension(initialWindowSize.getWidth.toInt, 32)
+    contents += gameMenuIcon("eject", Action("")(Eject))
+    contents += gameMenuIcon("reload", Action("")(director.Reset))
+    contents += gameMenuIcon("play", Action("")(director.Resume))
+    contents += gameMenuIcon("pause", Action("")(director.Pause))
+    contents += separator
+    contents += gameMenuIcon("document_add", Action("")(openFileDialog.foreach(StartDisplay)), active = true)
+    contents += gameMenuIcon("folder_add", Action("")(OpenFolderDialog), active = true)
+    visible = true
+  }
+
+  val consoleControls = List("eject", "reload", "play", "pause")
+
+  private def enableConsoleControls = {
+    gameMenu.contents.filter(x => consoleControls.contains(x.name)).foreach(_.enabled = true)
+  }
+
+  private def disableConsoleControls = {
+    gameMenu.contents.filter(x => consoleControls.contains(x.name)).foreach(_.enabled = false)
+  }
+
+  private def gameMenuIcon(path:String, gameAction: Action, active: Boolean = false) = new Button {
+    name = path
+    opaque = false
+    border = new EmptyBorder(1, 1, 1, 1)
+    horizontalAlignment = Alignment.Center
+    action = gameAction
+    icon = File.Image(s"/$path.png").map(new ImageIcon(_)).getOrElse(throw new Exception(s"Error loading $path icon"))
+    enabled = active
+  }
+
+  private val separator = new Separator {
+    maximumSize = new Dimension(initialWindowSize.getWidth.toInt, 0)
+    opaque = true
+    background = mediumGrey
   }
 
   private lazy val gameCanvas = new Canvas {
@@ -96,7 +121,6 @@ object Run extends SimpleSwingApplication {
               Display.setParent(frame)
               Display.create()
               director.Start(path)
-              resetMenuItem.enabled = true
             } catch {
               case e: LWJGLException => e.printStackTrace()
             }
@@ -117,13 +141,35 @@ object Run extends SimpleSwingApplication {
     JOptionPane.showMessageDialog(null, scrollPane)
   }
 
+  def Eject = {
+    top.peer.remove(gameCanvas)
+    top.peer.add(scrollWrapper.peer)
+    top.peer.pack()
+    scrollWrapper.peer.requestFocus()
+    disableConsoleControls
+    director.Menu
+  }
+
   def StartDisplay(path:String) = {
     filePath = Some(path)
     top.peer.remove(scrollWrapper.peer)
     top.peer.add(gameCanvas, BorderLayout.CENTER)
     top.peer.pack()
     gameCanvas.requestFocus()
-    resetMenuItem.enabled = true
+    enableConsoleControls
+  }
+
+  def OpenFolderDialog = {
+    val fileChooser = new FileChooser(){
+      title = "Select Game Library"
+      fileSelectionMode = FileChooser.SelectionMode.DirectoriesOnly
+      peer.setCurrentDirectory(new java.io.File(Settings.lastFileSelectDirectory))
+    }
+
+    if(fileChooser.showOpenDialog(null) == FileChooser.Result.Approve){
+      Settings.gameLibrary = fileChooser.selectedFile.getAbsolutePath
+      director.Reset
+    }
   }
 
   private def openFileDialog = {

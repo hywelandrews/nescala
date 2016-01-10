@@ -13,8 +13,7 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
                             "com.typesafe" % "config" % "1.3.0",
-                            "com.storm-enroute" %% "macrogl" % "0.4-SNAPSHOT",
-                            "com.yuvimasory" % "orange-extensions" % "1.3.0")
+                            "com.storm-enroute" %% "macrogl" % "0.4-SNAPSHOT")
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
