@@ -47,19 +47,21 @@ final case class Cartridge(private val path:String) {
 
   val HasTrainer = (Header.Control1 & 4) == 4
 
-  private var offset = headerSize
+  private def getCurrentOffset(i:Int = 0) = {
+    val base = if (HasTrainer) headerSize + trainerSize else headerSize
+    base + i
+  }
 
   val Trainer = if(HasTrainer) {
-    offset += trainerSize
-    raw.slice(offset, offset + trainerSize)
+    raw.slice(headerSize, getCurrentOffset())
   } else Array.fill(trainerSize){0}
 
-  val PrgRom = raw.slice(offset, offset + Header.NumPRG * prgRomSize)
+  private val prgOffset = Header.NumPRG * prgRomSize
+  val PrgRom = raw.slice(getCurrentOffset(), getCurrentOffset(prgOffset))
 
-  offset += (Header.NumPRG * prgRomSize)
-
+  private val chrOffset = Header.NumCHR * chrRomSize
   val ChrRom = if (Header.NumCHR == 0) Array.fill(chrRomSize){0}
-               else raw.slice(offset, offset + Header.NumCHR * chrRomSize)
+               else raw.slice(getCurrentOffset(prgOffset), getCurrentOffset(prgOffset + chrOffset))
 
   val SRam = Array.fill[Int](0x2000)(0)
 

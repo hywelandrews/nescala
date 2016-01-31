@@ -23,12 +23,10 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
     cpuCycles
   }
 
-  def StepFrame(): Long = {
-    var cpuCycles = 0L
-    val frame = ppu.Frame
-    while (frame == ppu.Frame) cpuCycles += Step()
-    cpuCycles
-  }
+  @tailrec
+  def StepFrame(cpuCycles:Long = 0L, frame:Long = ppu.Frame): Long =
+    if (frame == ppu.Frame) StepFrame(cpuCycles + Step())
+    else cpuCycles
 
   def StepSeconds(seconds:Double):Unit = {
     var cycles = CPU.frequency * seconds

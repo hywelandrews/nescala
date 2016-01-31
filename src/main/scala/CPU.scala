@@ -5,6 +5,9 @@ import scala.language.postfixOps
 case class CPU(memory:CPUMemory) {
 
   import CPU.{addressModes, interrupts}
+
+  // address, pc, mode
+  private type Operation = (Int, Int, Byte) => Unit
   // pc: program counter    / sp: stack pointer / a:  accumulator   / x:  register
   // y:  register           / c:  carry flag    / z:  zero flag     / i:  interrupt disable flag / d:  decimal mode flag
   // b:  break command flag / u:  unused flag   / v:  overflow flag / n:  negative flag
@@ -149,7 +152,7 @@ case class CPU(memory:CPUMemory) {
     this.cycles - cycles
   }
 
-  private def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {
+  @inline private def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {
       case addressModes.Absolute => read16(pc + 1) -> false
       case addressModes.AbsoluteX => val addressOffsetX = (read16(pc + 1) + registers.x) & 0xFFFF
         addressOffsetX -> pagesDiffer(addressOffsetX - registers.x, addressOffsetX)
@@ -262,11 +265,7 @@ case class CPU(memory:CPUMemory) {
   // triggerIRQ causes an IRQ interrupt to occur on the next cycle
   def triggerIRQ = if (registers.i == 0) interrupt = interrupts.IRQ
 
-  //address, pc, mode
-  private type Operation = (Int, Int, Byte) => Unit
-
-  // addBranchCycles adds a cycle for taking a branch and adds another cycle
-  // if the branch jumps to a new page
+  // Adds a cycle for taking a branch and adds another cycle if the branch jumps to a new page
   private val addBranchCycles = (f: () => Boolean) => (address:Int, pc:Int, mode:Byte) => {
     if(f()) {
       registers.pc = address
@@ -649,10 +648,11 @@ case class CPU(memory:CPUMemory) {
 object CPU {
   val frequency = 1789773
   // interrupt types
-  private object interrupts {
-    val Empty:Byte = 1
-    val NMI:Byte   = 2
-    val IRQ:Byte   = 3
+  private object interrupts extends Enumeration {
+    type Interrupt = Value
+    val Empty = Value
+    val NMI   = Value
+    val IRQ   = Value
   }
 
   // address modes
