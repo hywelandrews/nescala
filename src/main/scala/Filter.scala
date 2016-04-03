@@ -18,12 +18,7 @@ case class FirstOrderFilter(B0:Float, B1:Float, A1:Float) extends Filter {
 }
 
 case class FilterChain(filters:List[Filter]){
-  def Step(x:Float):Float = {
-      //filters.foldLeft(x)((y, filter) => filter.Step(y))
-    var y = x
-    filters.foreach(filter => y = filter.Step(y))
-    y
-  }
+  def Step(x:Float):Float = filters.foldLeft(x)((y, filter) => filter.Step(y))
 }
 
 object FilterChain {

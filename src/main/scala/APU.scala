@@ -8,7 +8,7 @@ case class APU(channel: (Float) => Unit) {
   private var cycle = 0L
   private val frameCounterRate = CPU.frequency / 240.0
   private val sampleRate = CPU.frequency / 44100
-  private val filterChain = FilterChain(sampleRate)
+  private val filterChain = FilterChain(44100)
   private case class Length(var enabled:Boolean = false, var value:Int = 0,
                             table:Array[Int] = Array(10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14,
                                           12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30))
@@ -25,10 +25,10 @@ case class APU(channel: (Float) => Unit) {
   private case class Envelope (var enabled:Boolean = false, var loop :Boolean = false, var start: Boolean = false,
                                var period:Int = 0, var value:Int = 0, var volume:Int = 0)
 
-  private val tndTable = for (i <- 0 to 202) yield 163.67F / (24329.0F / i.toFloat + 100)
+  private val tndTable = for (i <- 0 to 202) yield 163.67F / (24329.0F / i.toFloat + 100F)
 
   private object Pulse {
-    val table = for (i <- 0 to 30) yield 95.52F / (8128.0F / i.toFloat + 100)
+    val table = for (i <- 0 to 30) yield 95.52F / (8128.0F / i.toFloat + 100F)
   }
   private class Pulse(channel:Int) {
     case class Sweep(var reload:Boolean = false, var enabled:Boolean = false, var negate:Boolean = false,
@@ -54,7 +54,7 @@ case class APU(channel: (Float) => Unit) {
 
     def writeSweep(value:Int) = {
       sweep.enabled = ((value >>> 7) & 1) == 1
-      sweep.period  = (value >>> 4) & 7
+      sweep.period  = (value >>> 4) & 7 + 1
       sweep.negate  = ((value >>> 3) & 1) == 1
       sweep.shift   = value & 7
       sweep.reload  = true
@@ -63,18 +63,16 @@ case class APU(channel: (Float) => Unit) {
     def writeTimerLow(value:Int) = timer.period = ((timer.period & 0xFF00) | value) as uShort
 
     def writeTimerHigh(value:Int) = {
-      if(enabled) length.value = length.table(value >> 3)
+      if(enabled) length.value = length.table(value >>> 3)
       timer.period = (timer.period & 0x00FF) | (((value & 7) << 8) as uShort) as uShort
       envelope.start = true
       duty.value = 0
     }
 
-    def stepTimer() = {
-	    if (timer.value == 0) {
+    def stepTimer() = if (timer.value == 0) {
         timer.value = timer.period
 		    duty.value = ((duty.value + 1) as uByte) % 8
-	    } else timer.value = (timer.value - 1) as uShort
-    }
+	  } else timer.value = (timer.value - 1) as uShort
 
     def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) as uByte
 
@@ -118,7 +116,7 @@ case class APU(channel: (Float) => Unit) {
       if (length.value == 0) return 0
       if (Duty.table(duty.mode)(duty.value) == 0) return 0
       if (timer.period < 8 || timer.period > 0x7FF) return 0
-      // if (!sweepNegate && timerPeriod + (timerPeriod >> sweepShift) > 0x7FF) return 0
+      // if (!sweepNegate && timerPeriod + (timerPeriod >>> sweepShift) > 0x7FF) return 0
 
       if (envelope.enabled) envelope.volume
       else constantVolume
@@ -126,45 +124,39 @@ case class APU(channel: (Float) => Unit) {
   }
 
   private class Triangle {
-    var enabled:Boolean = false
-    val length:Length = Length()
-    val timer:Timer = Timer()
-    val duty:Duty = Duty()
-    var counterPeriod:Int = 0
-    var counterValue:Int = 0
-    var counterReload:Boolean = false
+    var enabled = false
+    val length = Length()
+    val timer = Timer()
+    val duty = Duty()
+    var counterPeriod = 0
+    var counterValue = 0
+    var counterReload = false
     val table = Array(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
                       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
     def writeControl(value:Int) = {
-      length.enabled = ((value >> 7) & 1) == 0
+      length.enabled = ((value >>> 7) & 1) == 0
       counterPeriod = value & 0x7F
     }
 
     def writeTimerLow(value:Int) = timer.period = ((timer.period & 0xFF00) | value) as uShort
 
     def writeTimerHigh(value:Int) = {
-      if(enabled) length.value = length.table(value >> 3)
+      if(enabled) length.value = length.table(value >>> 3)
       timer.period = (timer.period & 0x00FF) | (value & 7  << 8)
       timer.value = timer.period
       counterReload = true
     }
 
-    def stepTimer() = {
-	    if (timer.value == 0) {
+    def stepTimer() = if (timer.value == 0) {
         timer.value = timer.period
-		    if (length.value > 0 && counterValue > 0) {
-			    duty.value = (duty.value + 1) % 32
-		    }
-	    } else {
-		    timer.value -= 1
-	    }
-    }
+		    if (length.value > 0 && counterValue > 0) duty.value = ((duty.value + 1) as uByte) % 32
+	  } else timer.value = (timer.value - 1) as uShort
 
     def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) as uByte
 
     def stepCounter() = {
-	    if (counterReload) counterValue = counterPeriod else if (counterValue > 0) counterValue -= 1
+	    if (counterReload) counterValue = counterPeriod else if (counterValue > 0) counterValue = (counterValue - 1) as uByte
 	    if (length.enabled) counterReload = false
     }
 
@@ -177,21 +169,21 @@ case class APU(channel: (Float) => Unit) {
   }
 
   private class Noise {
-    var enabled:Boolean = false
-    var mode:Boolean = false
-    var shiftRegister:Int = 1
-    val length:Length = Length()
-    val timer:Timer = Timer()
-    val envelope:Envelope = Envelope()
-    var constantVolume:Int = 0
+    var enabled = false
+    var mode = false
+    var shiftRegister = 1
+    val length = Length()
+    val timer = Timer()
+    val envelope = Envelope()
+    var constantVolume = 0
     private val table = Array(4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068)
 
     def writeControl(value:Int) = {
-      length.enabled = ((value >> 5) & 1) == 0
-      envelope.loop = ((value >> 5) & 1) == 1
-      envelope.enabled = ((value >> 4) & 1) == 0
+      length.enabled = ((value >>> 5) & 1) == 0
+      envelope.loop = ((value >>> 5) & 1) == 1
+      envelope.enabled = ((value >>> 4) & 1) == 0
       envelope.period = value & 15
-      constantVolume = value & 15
+      constantVolume = (value & 15) as uByte
       envelope.start = true
     }
 
@@ -201,7 +193,7 @@ case class APU(channel: (Float) => Unit) {
     }
 
     def writeLength(value:Int) = {
-      if(enabled) length.value = length.table(value >> 3)
+      if(enabled) length.value = length.table(value >>> 3)
       envelope.start = true
     }
 
@@ -210,10 +202,10 @@ case class APU(channel: (Float) => Unit) {
         timer.value = timer.period
         val shift = if (mode) 6 else 1
         val b1 = shiftRegister & 1
-        val b2 = (shiftRegister >> shift) & 1
-        shiftRegister >>= 1
+        val b2 = (shiftRegister >>> shift) & 1
+        shiftRegister >>>= 1
         shiftRegister |= (b1 ^ b2) << 14
-      } else timer.value -= 1
+      } else timer.value = (timer.value - 1) as uShort
     }
 
     def stepEnvelope() = {
@@ -222,17 +214,17 @@ case class APU(channel: (Float) => Unit) {
 		    envelope.value = envelope.period as uByte
 		    envelope.start = false
 	    }
-      else if (envelope.value > 0) envelope.value -= 1
+      else if (envelope.value > 0) envelope.value = (envelope.value - 1) as uByte
       else {
 		    if (envelope.volume > 0) {
-			    envelope.volume -= 1
+			    envelope.volume = (envelope.volume - 1) as uByte
 		    } else if (envelope.loop) envelope.volume = 15
 
         envelope.value = envelope.period
 	    }
     }
 
-    def stepLength() = if (length.enabled && length.value > 0) length.value -= 1
+    def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) as uByte
 
     def output():Int = {
       if (!enabled) return 0
@@ -247,22 +239,19 @@ case class APU(channel: (Float) => Unit) {
 
   private[APU] case class DMC(enabled:Boolean, var value:Int, var sampleAddress:Int, var sampleLength:Int, var currentAddress:Int, var currentLength:Int,
                               var shiftRegister:Int, var bitCount:Int, var tickPeriod:Int, var tickValue:Int, var loop:Boolean, var irq:Boolean){
-    val timer:Timer = Timer()
+    val timer = Timer()
     private val table = Array[Int](214, 190, 170, 160, 143, 127, 113, 107, 95, 80, 71, 64, 53, 42, 36, 27)
 
-    def writeValue(value:Int) = {
-      this.value = value & 0x7F
-    }
+    def writeValue(value:Int) = this.value = (value & 0x7F) as uByte
+
     def writeControl(value:Int) = {
 	    irq = (value & 0x80) == 0x80
 	    loop = (value & 0x40) == 0x40
 	    tickPeriod = table(value&0x0F)
     }
 
-    def writeAddress(value:Int) = {
-	    // Sample address = %11AAAAAA.AA000000
-	    sampleAddress = 0xC000 | ((value << 6) as uShort)
-    }
+    // Sample address = %11AAAAAA.AA000000
+    def writeAddress(value:Int) = sampleAddress = 0xC000 | ((value << 6) as uShort)
 
     def writeLength(value:Int) = {
 	    // Sample length = %0000LLLL.LLLL0001
@@ -280,7 +269,7 @@ case class APU(channel: (Float) => Unit) {
       if (tickValue == 0) {
         tickValue = tickPeriod
         stepShifter()
-      } else tickValue -= 1
+      } else tickValue = (tickValue - 1) as uByte
     }
 
 
@@ -289,11 +278,11 @@ case class APU(channel: (Float) => Unit) {
         DMAStall = true
 		    shiftRegister = dmaRead(currentAddress)
 		    bitCount = 8
-		    currentAddress += 1
+		    currentAddress = (currentAddress + 1) as uShort
 
         if (currentAddress == 0) currentAddress = 0x8000
 
-        currentLength -= 1
+        currentLength = (currentAddress - 1) as uShort
 
         if (currentLength == 0 && loop) restart()
 	    }
@@ -303,14 +292,12 @@ case class APU(channel: (Float) => Unit) {
 	    if (bitCount == 0) return
 
       if ((shiftRegister & 1) == 1) {
-		    if (value <= 125) value += 2
+		    if (value <= 125) value = (value + 2) as uByte
 	    } else {
-        if (value >= 2) {
-          value -= 2
-        }
+        if (value >= 2) value = (value - 2) as uByte
 	    }
-      shiftRegister >>= 1
-      bitCount -= 1
+      shiftRegister >>>= 1
+      bitCount = (bitCount - 1) as uByte
     }
 
     def output(): Int = value
@@ -372,7 +359,7 @@ case class APU(channel: (Float) => Unit) {
     if (s1 != s2) sendSample()
   }
 
-  def sendSample() = channel(output()) //TODO: get filterChain.Step(output()) working
+  def sendSample() = channel(output()) //TODO: get channel(filterChain.Step(output())) working
 
   def output(): Float = {
     val p1 = pulse1.output()
