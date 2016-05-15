@@ -20,6 +20,7 @@ lazy val root = (project in file(".")).
   settings(
     mainClass in (Compile,run) := Some("ui.Run"),
     fork in run := true,
+    scalacOptions in Compile += "-feature",
     javaOptions in run += "-XX:UseSSE=3",
     javaOptions in run += "-XX:+UseConcMarkSweepGC",
     javaOptions in run +=  "-Xms128m",

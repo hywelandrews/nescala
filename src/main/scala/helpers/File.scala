@@ -8,6 +8,8 @@ import com.typesafe.config.ConfigFactory
 import scala.util.Try
 import scala.xml.XML
 
+import scala.language.postfixOps
+
 object File {
   import java.io.File
   import java.net.URL

@@ -14,6 +14,8 @@ import scala.concurrent.{Await, Future}
 import scala.swing.event.{MouseEntered, MouseExited}
 import scala.swing.{Button, _}
 
+import scala.language.postfixOps
+
 trait View {
   def Open()
   def Close()
