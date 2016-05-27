@@ -1,5 +1,6 @@
 package nescala
 
+import helpers.Unsigned._
 import scala.language.postfixOps
 
 case class CPU(memory:CPUMemory) {
@@ -100,7 +101,7 @@ case class CPU(memory:CPUMemory) {
     memory.Write(0x4017, memory.Read(0x4017))
     //disable audio on reset
     registers.sp = registers.sp - 3
-    registers.sp = registers.sp & 0xff
+    registers.sp = registers.sp as uByte
     registers.i = 1
     registers.pc = initialProgramCounter
     registers.sp = initialStackPointer
@@ -154,24 +155,24 @@ case class CPU(memory:CPUMemory) {
 
   @inline private def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {
       case addressModes.Absolute => read16(pc + 1) -> false
-      case addressModes.AbsoluteX => val addressOffsetX = (read16(pc + 1) + registers.x) & 0xFFFF
+      case addressModes.AbsoluteX => val addressOffsetX = (read16(pc + 1) + registers.x) as uShort
         addressOffsetX -> pagesDiffer(addressOffsetX - registers.x, addressOffsetX)
-      case addressModes.AbsoluteY => val addressOffsetY = (read16(registers.pc + 1) + registers.y) & 0xFFFF
+      case addressModes.AbsoluteY => val addressOffsetY = (read16(registers.pc + 1) + registers.y) as uShort
         addressOffsetY -> pagesDiffer(addressOffsetY - registers.y, addressOffsetY)
       case addressModes.Accumulator => 0 -> false
       case addressModes.Immediate => pc + 1 -> false
       case addressModes.Implied => 0 -> false
-      case addressModes.IndexedIndirect => read16Bug((memory.Read(registers.pc + 1) + registers.x) & 0xFF) -> false
+      case addressModes.IndexedIndirect => read16Bug((memory.Read(registers.pc + 1) + registers.x) as uByte) -> false
       case addressModes.Indirect => read16Bug(read16(pc + 1)) -> false
-      case addressModes.IndirectIndexed => val addressOffsetY = (read16Bug(memory.Read(registers.pc + 1)) + registers.y) & 0xFFFF
+      case addressModes.IndirectIndexed => val addressOffsetY = (read16Bug(memory.Read(registers.pc + 1)) + registers.y) as uShort
         addressOffsetY -> pagesDiffer(addressOffsetY - registers.y, addressOffsetY)
       case addressModes.Relative =>
         val offset = memory.Read(pc + 1)
         if (offset < 0x80) pc + 2 + offset -> false
         else pc + 2 + offset - 0x100 -> false
       case addressModes.ZeroPage => memory.Read(pc + 1) -> false
-      case addressModes.ZeroPageX => ((memory.Read(pc + 1) + registers.x) & 0xFF) -> false
-      case addressModes.ZeroPageY => ((memory.Read(pc + 1) + registers.y) & 0xFF) -> false
+      case addressModes.ZeroPageX => ((memory.Read(pc + 1) + registers.x) as uByte) -> false
+      case addressModes.ZeroPageY => ((memory.Read(pc + 1) + registers.y) as uByte) -> false
   }
 
   // Read16 reads two bytes using Read to return a double-word value
@@ -183,7 +184,7 @@ case class CPU(memory:CPUMemory) {
   // read16bug emulates a 6502 bug that caused the low byte to wrap without incrementing the high byte
   private def read16Bug(address:Int): Int = {
     val a = address
-    val b = (a & 0xFF00) | ((a + 1) & 0xFF)
+    val b = (a & 0xFF00) | ((a + 1) as uByte)
     val (lo, hi) = (memory.Read(a), memory.Read(b))
     hi << 8 | lo
   }
@@ -218,7 +219,7 @@ case class CPU(memory:CPUMemory) {
   }
   // pull pops a byte from the stack
   private def pull:Int = {
-    registers.sp = (registers.sp + 1) & 0xFF
+    registers.sp = (registers.sp + 1) as uByte
     memory.Read(0x100 | registers.sp)
   }
   // pull16 pops two bytes from the stack
@@ -229,11 +230,11 @@ case class CPU(memory:CPUMemory) {
   // push pushes a byte onto the stack
   private def push(value:Int) = {
     memory.Write(0x100 | registers.sp, value)
-    registers.sp = (registers.sp - 1) & 0xFF
+    registers.sp = (registers.sp - 1) as uByte
   }
   // push16 pushes two bytes onto the stack
   private def push16(value:Int) = {
-    val (hi, lo) = (value >>> 8, value & 0xFF)
+    val (hi, lo) = (value >>> 8, value as uByte)
     push(hi)
     push(lo)
   }
@@ -282,7 +283,7 @@ case class CPU(memory:CPUMemory) {
   // ADC - Add with Carry
   private lazy val adc:Operation = { (address:Int, pc:Int, mode:Byte) =>
     val (a, b, c) = (registers.a, memory.Read(address), registers.c)
-    registers.a = (a + b + c) & 0xFF
+    registers.a = (a + b + c) as uByte
     setZN(registers.a)
 
     if ((a + b + c) > 0xFF) registers.c = 1 else registers.c = 0
@@ -297,12 +298,12 @@ case class CPU(memory:CPUMemory) {
   private lazy val asl:Operation = (address:Int, pc:Int, mode:Byte) => mode match {
       case addressModes.Accumulator =>
         registers.c = (registers.a >>> 7) & 1
-        registers.a = (registers.a << 1) & 0xFF
+        registers.a = (registers.a << 1) as uByte
         setZN(registers.a)
       case other =>
         val readValue = memory.Read(address)
         registers.c = (readValue >>> 7) & 1
-        val writeValue = (readValue << 1) & 0xFF
+        val writeValue = (readValue << 1) as uByte
         memory.Write(address, writeValue)
         setZN(writeValue)
   }
@@ -352,39 +353,39 @@ case class CPU(memory:CPUMemory) {
   private lazy val cpy:Operation = (address:Int, pc:Int, mode:Byte) => compare(registers.y, memory.Read(address))
   // DEC - Decrement Memory
   private lazy val dec:Operation = (address:Int, pc:Int, mode:Byte) => {
-    val value = (memory.Read(address) - 1) & 0xFF
+    val value = (memory.Read(address) - 1) as uByte
     memory.Write(address, value)
     setZN(value)
   }
   // DEX - Decrement X Register
   private lazy val dex:Operation = (address:Int, pc:Int, mode:Byte) => {
-    registers.x = (registers.x - 1) & 0xFF
+    registers.x = (registers.x - 1) as uByte
     setZN(registers.x)
   }
   // DEY - Decrement Y Register
   private lazy val dey:Operation = (address:Int, pc:Int, mode:Byte) => {
-    registers.y = (registers.y - 1) & 0xFF
+    registers.y = (registers.y - 1) as uByte
     setZN(registers.y)
   }
   // EOR - Exclusive OR
   private lazy val eor:Operation = (address:Int, pc:Int, mode:Byte) => {
-    registers.a = (registers.a ^ memory.Read(address)) & 0xFF
+    registers.a = (registers.a ^ memory.Read(address)) as uByte
     setZN(registers.a)
   }
   // INC - Increment Memory
   private lazy val inc:Operation = (address:Int, pc:Int, mode:Byte) => {
-    val value = (memory.Read(address) + 1) & 0xFF
+    val value = (memory.Read(address) + 1) as uByte
     memory.Write(address, value)
     setZN(value)
   }
   // INX - Increment X Register
   private lazy val inx:Operation = (address:Int, pc:Int, mode:Byte) => {
-    registers.x = (registers.x + 1) & 0xFF
+    registers.x = (registers.x + 1) as uByte
     setZN(registers.x)
   }
   // INY - Increment Y Register
   private lazy val iny:Operation = (address:Int, pc:Int, mode:Byte) =>  {
-    registers.y = (registers.y + 1) & 0xFF
+    registers.y = (registers.y + 1) as uByte
     setZN(registers.y)
   }
   // JMP - Jump
@@ -446,12 +447,12 @@ case class CPU(memory:CPUMemory) {
     val c = registers.c
     if (mode == addressModes.Accumulator) {
       registers.c = (registers.a >>> 7) & 1
-      registers.a = ((registers.a << 1) & 0xFF) | c
+      registers.a = ((registers.a << 1) as uByte) | c
       setZN(registers.a)
     } else {
       var value = memory.Read(address)
       registers.c = (value >>> 7) & 1
-      value = ((value << 1) & 0xFF)| c
+      value = ((value << 1) as uByte)| c
       memory.Write(address, value)
       setZN(value)
     }
@@ -461,12 +462,12 @@ case class CPU(memory:CPUMemory) {
     val c = registers.c
     if (mode == addressModes.Accumulator) {
       registers.c = registers.a & 1
-      registers.a = (registers.a >>> 1) | ((c << 7) & 0xFF)
+      registers.a = (registers.a >>> 1) | ((c << 7) as uByte)
       setZN(registers.a)
     } else {
       var value = memory.Read(address)
       registers.c = value & 1
-      value = (value >> 1) | ((c << 7) & 0xFF)
+      value = (value >> 1) | ((c << 7) as uByte)
       memory.Write(address, value)
       setZN(value)
     }
@@ -477,12 +478,12 @@ case class CPU(memory:CPUMemory) {
     registers.pc = pull16
   }
   // RTS - Return from Subroutine
-  private lazy val rts:Operation = (address:Int, pc:Int, mode:Byte) => registers.pc = (pull16 + 1) & 0xFFFF
+  private lazy val rts:Operation = (address:Int, pc:Int, mode:Byte) => registers.pc = (pull16 + 1) as uShort
 
   // SBC - Subtract with Carry
   private lazy val sbc:Operation = (address:Int, pc:Int, mode:Byte) => {
     val (a, b, c) = (registers.a, memory.Read(address), registers.c)
-    val value = (a - b - (1 - c)) & 0xFF
+    val value = (a - b - (1 - c)) as uByte
     registers.a = value
     setZN(registers.a)
     if (a - b - (1 - c) >= 0) registers.c = 1 else registers.c = 0
@@ -595,19 +596,19 @@ case class CPU(memory:CPUMemory) {
         case addressModes.ZeroPage => f"$$${formatHex(address)} = ${formatHex(memory.Read(address))}%-21s"
         case addressModes.ZeroPageX =>
           val addr = memory.Read(registers.pc + 1)
-          val offset = (addr  + registers.x) & 0xFF
+          val offset = (addr  + registers.x) as uByte
           f"$$${formatHex(addr)},X @ ${formatHex(offset)} = ${formatHex(memory.Read(address))}%-14s"
         case addressModes.Accumulator => "A".padTo(27, " ").mkString
         case addressModes.Implied => " ".padTo(27, " ").mkString
         case addressModes.IndexedIndirect =>
-          val addr = memory.Read(registers.pc + 1)
-          val offset = (addr + registers.x) & 0xFF
-          f"($$${formatHex(addr)},X) @ ${formatHex(offset)} = ${formatHex(address, 4)} = ${formatHex(memory.Read(address))}%-5s"
+          val address = memory.Read(registers.pc + 1)
+          val offset = (address + registers.x) as uByte
+          f"($$${formatHex(address)},X) @ ${formatHex(offset)} = ${formatHex(address, 4)} = ${formatHex(memory.Read(address))}%-5s"
         case addressModes.IndirectIndexed =>
-          val addr = memory.Read(registers.pc + 1)
-          val offset = read16Bug(addr)
-          val offsetY = (offset  + registers.y) & 0xFFFF
-          f"($$${formatHex(addr)}),Y = ${formatHex(offset, 4)} @ ${formatHex(offsetY, 4)} = ${formatHex(memory.Read(address))}%-3s"
+          val address = memory.Read(registers.pc + 1)
+          val offset = read16Bug(address)
+          val offsetY = (offset  + registers.y) as uShort
+          f"($$${formatHex(address)}),Y = ${formatHex(offset, 4)} @ ${formatHex(offsetY, 4)} = ${formatHex(memory.Read(address))}%-3s"
         case addressModes.Absolute => f"$$${formatHex(address, 4)}%-26s"
         case addressModes.Indirect => f"($$${formatHex(read16(registers.pc + 1), 4)}) = ${formatHex(memory.Read(address), 4)}%-17s"
         case _ => f"$$${formatHex(address, 4)}%-26s"

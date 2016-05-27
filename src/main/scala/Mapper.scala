@@ -1,5 +1,7 @@
 package nescala
 
+import helpers.Unsigned._
+
 trait Mapper {
   def Read(address:Int): Int
   def Write(address:Int, value: Int)
@@ -44,7 +46,7 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
       val offset = chr % 0x1000
       chrRom(chrOffsets(bank) + offset)
     case prg if isPrg1(address) =>
-      val loadAddress = (address - 0x8000) & 0xFFFF
+      val loadAddress = (address - 0x8000) as uShort
       val bank = loadAddress / 0x4000
       val offset = loadAddress % 0x4000
       prgRom(prgOffsets(bank) + offset)
@@ -69,7 +71,7 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     } else {
       val complete = (shiftRegister & 1) == 1
       shiftRegister = shiftRegister >>> 1
-      shiftRegister = (shiftRegister | ((value & 1) << 4)) & 0xFF
+      shiftRegister = (shiftRegister | ((value & 1) << 4)) as uByte
       if (complete) {
         writeRegister(address, shiftRegister)
         shiftRegister = resetShiftRegister
@@ -210,7 +212,7 @@ case class Mapper3(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
         val index = prgBank1 * 0x4000 + (address - 0x8000)
         prgRom(index)
       case saveRam if address >= 0x6000 =>
-        val index = (address - 0x6000) & 0xFFFF
+        val index = (address - 0x6000) as uShort
         sRam(index)
       case default => System.err.println(s"Unhandled mapper3 write at address: ${Integer.toHexString(default)}"); 0
   }
@@ -254,12 +256,12 @@ case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
       val offset = address % 0x0400
       chrRom(chrOffsets(bank) + offset)
     case prg1 if isPrg1(address) =>
-      val addressOffset = (address - 0x8000) & 0xFFFF
+      val addressOffset = (address - 0x8000) as uShort
       val bank = addressOffset / 0x2000
       val offset = addressOffset % 0x2000
       prgRom(prgOffsets(bank) + offset)
     case saveRam if address >= 0x6000 =>
-      val index = (address - 0x6000) & 0xFFFF
+      val index = (address - 0x6000) as uShort
       sRam(index)
     case default => System.err.println(s"Unhandled mapper4 write at address: ${Integer.toHexString(default)}"); 0
   }
@@ -376,7 +378,7 @@ case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
   private def handleScanLine(triggerIRQHandler: => Unit) {
     if (counter == 0) counter = reload
     else {
-      counter = (counter - 1) & 0xFF
+      counter = (counter - 1) as uByte
       if (counter == 0 && irqEnable) triggerIRQHandler
     }
   }

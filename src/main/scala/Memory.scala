@@ -43,6 +43,8 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
 
 trait PPUMemory extends Memory { self:PPU =>
 
+  import helpers.Unsigned._
+
   val mapper:Mapper
   val cartridge:Cartridge
 
@@ -72,20 +74,20 @@ trait PPUMemory extends Memory { self:PPU =>
   )
 
   private def mirrorAddress(mode:Int, address:Int):Int = {
-    val mirrorAddress = ((address - 0x2000) & 0xFFFF) % 0x1000
+    val mirrorAddress = ((address - 0x2000) as uShort) % 0x1000
     val table = mirrorAddress / 0x0400
     val offset = mirrorAddress % 0x0400
-    (0x2000 + mirrorLookup(mode)(table) * 0x0400 + offset) & 0xFFFF
+    (0x2000 + mirrorLookup(mode)(table) * 0x0400 + offset) as uShort
   }
 
   def ReadPalette(address:Int):Int = {
-    val paletteAddress = if ((address >= 16) && (address % 4 == 0)) (address - 16) & 0xFFFF
+    val paletteAddress = if ((address >= 16) && (address % 4 == 0)) (address - 16) as uShort
                          else address
     paletteData(paletteAddress)
   }
 
   def WritePalette(address:Int, value:Int) = {
-    if ((address >= 16) && (address % 4 == 0)) paletteData((address - 16) & 0xFFFF) = value & 0xFF
-    else paletteData(address) = value & 0xFF
+    if ((address >= 16) && (address % 4 == 0)) paletteData((address - 16) as uShort) = value as uByte
+    else paletteData(address) = value as uByte
   }
 }

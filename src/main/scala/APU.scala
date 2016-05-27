@@ -1,5 +1,7 @@
 package nescala
 
+import helpers.Unsigned._
+
 case class APU(channel: (Float) => Unit) {
 
   var DMAStall = false
@@ -58,11 +60,11 @@ case class APU(channel: (Float) => Unit) {
       sweep.reload  = true
     }
 
-    def writeTimerLow(value:Int) = timer.period = ((timer.period & 0xFF00) | value) & 0xFFFF
+    def writeTimerLow(value:Int) = timer.period = ((timer.period & 0xFF00) | value) as uShort
 
     def writeTimerHigh(value:Int) = {
       if(enabled) length.value = length.table(value >> 3)
-      timer.period = (timer.period & 0x00FF) | (((value & 7) << 8) & 0xFFFF) & 0xFFFF
+      timer.period = (timer.period & 0x00FF) | (((value & 7) << 8) as uShort) as uShort
       envelope.start = true
       duty.value = 0
     }
@@ -70,11 +72,11 @@ case class APU(channel: (Float) => Unit) {
     def stepTimer() = {
 	    if (timer.value == 0) {
         timer.value = timer.period
-		    duty.value = ((duty.value + 1) & 0xFF) % 8
-	    } else timer.value = (timer.value - 1) & 0xFFFF
+		    duty.value = ((duty.value + 1) as uByte) % 8
+	    } else timer.value = (timer.value - 1) as uShort
     }
 
-    def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) & 0xFF
+    def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) as uByte
 
     def stepEnvelope() = {
       if (envelope.start) {
@@ -82,9 +84,9 @@ case class APU(channel: (Float) => Unit) {
         envelope.value = envelope.period
         envelope.start = false
       }
-      else if (envelope.value > 0) envelope.value = (envelope.value - 1) & 0xFF
+      else if (envelope.value > 0) envelope.value = (envelope.value - 1) as uByte
       else {
-        if (envelope.volume > 0) envelope.volume = (envelope.volume - 1) & 0xFF
+        if (envelope.volume > 0) envelope.volume = (envelope.volume - 1) as uByte
         else if (envelope.loop) envelope.volume = 15
         envelope.value = envelope.period
       }
@@ -96,7 +98,7 @@ case class APU(channel: (Float) => Unit) {
         sweep.value = sweep.period
         sweep.reload = false
       }
-      else if (sweep.value > 0) sweep.value = (sweep.value - 1) & 0xFF
+      else if (sweep.value > 0) sweep.value = (sweep.value - 1) as uByte
       else {
         if (sweep.enabled) doSweep()
         sweep.value = sweep.period
@@ -106,9 +108,9 @@ case class APU(channel: (Float) => Unit) {
     def doSweep() = {
 	    val delta = timer.period >>> sweep.shift
       timer.period = if (sweep.negate) {
-        if (channel == 1) (timer.period - 1) & 0xFFFF
-        else  (timer.period - delta) & 0xFFFF
-	    } else  (timer.period + delta) & 0xFFFF
+        if (channel == 1) (timer.period - 1) as uShort
+        else  (timer.period - delta) as uShort
+	    } else  (timer.period + delta) as uShort
     }
 
     def output():Int = {
@@ -139,7 +141,7 @@ case class APU(channel: (Float) => Unit) {
       counterPeriod = value & 0x7F
     }
 
-    def writeTimerLow(value:Int) = timer.period = ((timer.period & 0xFF00) | value) & 0xFFFF
+    def writeTimerLow(value:Int) = timer.period = ((timer.period & 0xFF00) | value) as uShort
 
     def writeTimerHigh(value:Int) = {
       if(enabled) length.value = length.table(value >> 3)
@@ -159,7 +161,7 @@ case class APU(channel: (Float) => Unit) {
 	    }
     }
 
-    def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) & 0xFF
+    def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) as uByte
 
     def stepCounter() = {
 	    if (counterReload) counterValue = counterPeriod else if (counterValue > 0) counterValue -= 1
@@ -217,7 +219,7 @@ case class APU(channel: (Float) => Unit) {
     def stepEnvelope() = {
 	    if (envelope.start) {
 		    envelope.volume = 15
-		    envelope.value = envelope.period & 0xFF
+		    envelope.value = envelope.period as uByte
 		    envelope.start = false
 	    }
       else if (envelope.value > 0) envelope.value -= 1
@@ -259,12 +261,12 @@ case class APU(channel: (Float) => Unit) {
 
     def writeAddress(value:Int) = {
 	    // Sample address = %11AAAAAA.AA000000
-	    sampleAddress = 0xC000 | ((value << 6) & 0xFFFF)
+	    sampleAddress = 0xC000 | ((value << 6) as uShort)
     }
 
     def writeLength(value:Int) = {
 	    // Sample length = %0000LLLL.LLLL0001
-	    sampleLength = ((value << 4) & 0xFFFF) | 1
+	    sampleLength = ((value << 4) as uShort) | 1
     }
 
     def restart() = {
@@ -354,7 +356,7 @@ case class APU(channel: (Float) => Unit) {
 
   def Step (dmaRead: Int => Int, fireIRQHandler: => Unit) = {
     val cycle1 = cycle
-    cycle = (cycle + 1) & 0xFFFFFFFFL
+    cycle = (cycle + 1) as uLong
     val cycle2 = cycle
 
     stepTimer(dmaRead)

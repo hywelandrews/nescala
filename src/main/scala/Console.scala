@@ -16,9 +16,7 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
       mapper.Step(ppu.Cycle, ppu.ScanLine, ppu.ShowBackground, ppu.ShowSprites, cpu.triggerIRQ)
     }
 
-    for (i <- 0L until cpuCycles) {
-      apu.Step(cpu.memory.Read, cpu.triggerIRQ)
-    }
+    for (i <- 0L until cpuCycles) apu.Step(cpu.memory.Read, cpu.triggerIRQ)
 
     cpuCycles
   }

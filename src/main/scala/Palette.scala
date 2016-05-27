@@ -1,5 +1,6 @@
 package nescala
 
+import helpers.Unsigned._
 
 object Palette {
 
@@ -14,8 +15,8 @@ object Palette {
   val buildColor = (r:Int, g:Int, b:Int) => ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)
 
   val lookup = for {c <- color
-        r = (c >> 16) & 0xFF
-        g = (c >> 8) & 0xFF
-        b = c & 0xFF
+        r = (c >> 16) as uByte
+        g = (c >> 8) as uByte
+        b = c as uByte
   } yield buildColor(r, g, b)
 }

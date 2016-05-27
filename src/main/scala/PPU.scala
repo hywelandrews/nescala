@@ -1,6 +1,7 @@
 package nescala
 
 import java.awt.image.BufferedImage
+import helpers.Unsigned._
 
 case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
@@ -96,16 +97,16 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   // $2000: PPUCTRL
   private def writeControl(value: Int) = {
-    flagNameTable = ((value >>> 0) & 3) & 0xFF
-    flagIncrement = ((value >>> 2) & 1)  & 0xFF
-    flagSpriteTable = ((value >>> 3) & 1)  & 0xFF
-    flagBackgroundTable = ((value >>> 4) & 1)  & 0xFF
-    flagSpriteSize = ((value >>> 5) & 1)  & 0xFF
-    flagMasterSlave = ((value >>> 6) & 1)  & 0xFF
-    nmiOutput = (((value >>> 7) & 1) & 0xFF) == 1
+    flagNameTable = ((value >>> 0) & 3) as uByte
+    flagIncrement = ((value >>> 2) & 1)  as uByte
+    flagSpriteTable = ((value >>> 3) & 1) as uByte
+    flagBackgroundTable = ((value >>> 4) & 1) as uByte
+    flagSpriteSize = ((value >>> 5) & 1) as uByte
+    flagMasterSlave = ((value >>> 6) & 1) as uByte
+    nmiOutput = (((value >>> 7) & 1) as uByte) == 1
     nmiChange()
     // tempVramAddress: ....BA.. ........ = d: ......BA
-    tempVramAddress = ((tempVramAddress & 0xF3FF) | (value & 0xFF & 0x03) << 10) & 0xFFFF
+    tempVramAddress = ((tempVramAddress & 0xF3FF) | ((value as uByte) & 0x03) << 10) as uShort
   }
 
   // $2001: PPUMASK
@@ -123,9 +124,9 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   // $2002: PPUSTATUS
   private def readStatus(): Int = {
     var result = register & 0x1F
-    result = (result | (flagSpriteOverflow << 5)) & 0xFF
-    result = (result | (flagSpriteZeroHit << 6)) & 0xFF
-    if (nmiOccurred) result = (result | (1 << 7)) & 0xFF
+    result = (result | (flagSpriteOverflow << 5)) as uByte
+    result = (result | (flagSpriteZeroHit << 6)) as uByte
+    if (nmiOccurred) result = (result | (1 << 7)) as uByte
     nmiOccurred = false
     nmiChange()
     // writeToggle:     = 0
@@ -142,7 +143,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   // $2004: OAMDATA (write)
   private def writeOAMData(value: Int) = {
     oamData(oamAddress) = value
-    oamAddress = (oamAddress + 1) & 0xFF
+    oamAddress = (oamAddress + 1) as uByte
   }
 
   // $2005: PPUSCROLL
@@ -151,14 +152,14 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       // tempVramAddress: ........ ...HGFED = d: HGFED...
       // fineX:               CBA = d: .....CBA
       // writeToggle:                   = 1
-      tempVramAddress = ((tempVramAddress & 0xFFE0) | (value >>> 3)) & 0xFFFF
-      fineX = value & 0xFF & 0x07
+      tempVramAddress = ((tempVramAddress & 0xFFE0) | (value >>> 3)) as uShort
+      fineX = (value as uByte) & 0x07
       writeToggle = 1
     } else {
       // tempVramAddress: .CBA..HG FED..... = d: HGFEDCBA
       // writeToggle:                   = 0
-      tempVramAddress = ((tempVramAddress & 0x8FFF) | ((value & 0xFFFF & 0x07) << 12)) & 0xFFFF
-      tempVramAddress = ((tempVramAddress & 0xFC1F) | ((value & 0xFFFF & 0xF8) << 2)) & 0xFFFF
+      tempVramAddress = ((tempVramAddress & 0x8FFF) | ((value as uShort) & 0x07) << 12) as uShort
+      tempVramAddress = ((tempVramAddress & 0xFC1F) | ((value as uShort) & 0xF8) << 2) as uShort
       writeToggle = 0
     }
   }
@@ -169,13 +170,13 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       // tempVramAddress: ..FEDCBA ........ = d: ..FEDCBA
       // tempVramAddress: .X...... ........ = 0
       // writeToggle:                   = 1
-      tempVramAddress = ((tempVramAddress & 0x80FF) | ((value  & 0xFFFF & 0x3F) << 8)) & 0xFFFF
+      tempVramAddress = ((tempVramAddress & 0x80FF) | ((value  as uShort) & 0x3F) << 8) as uShort
       writeToggle = 1
     } else {
       // tempVramAddress: ........ HGFEDCBA = d: HGFEDCBA
       // vramAddress                    = tempVramAddress
       // writeToggle:                   = 0
-      tempVramAddress = ((tempVramAddress & 0xFF00) | (value  & 0xFFFF)) & 0xFFFF
+      tempVramAddress = ((tempVramAddress & 0xFF00) | (value as uShort)) as uShort
       vramAddress = tempVramAddress
       writeToggle = 0
     }
@@ -189,26 +190,26 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       val buffered = bufferedData
       bufferedData = value
       value = buffered
-    } else bufferedData = Read((vramAddress - 0x1000) & 0xFFFF)
+    } else bufferedData = Read((vramAddress - 0x1000) as uShort)
     // increment address
-    vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) & 0xFFFF
+    vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) as uShort
     value
   }
 
   // $2007: PPUDATA (write)
   private def writeData(value: Int) = {
     Write(vramAddress, value)
-    vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) & 0xFFFF
+    vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) as uShort
   }
 
   // $4014: OAMDMA
   private def writeDMA(value: Int, dmaRead: Int => Int) = {
-    var address = (value << 8) & 0xFFFF
+    var address = (value << 8) as uShort
 
     for (i <- 0 to 255) {
       oamData(oamAddress) = dmaRead(address)
-      oamAddress = (oamAddress + 1) & 0xFF
-      address = (address + 1) & 0xFFFF
+      oamAddress = (oamAddress + 1) as uByte
+      address = (address + 1) as uShort
     }
 
     DMAStall = true
@@ -231,7 +232,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   def WriteRegister(address: Int, value: Int, dmaRead: Int => Int) = {
-    register = value & 0xFF
+    register = value as uByte
     address match {
       case 0x2000 => writeControl(value)
       case 0x2001 => writeMask(value)
@@ -247,7 +248,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   // tick updates Cycle, ScanLine and Frame counters
   private def tick(triggerNMIHandler: => Unit): Unit = {
     if (nmiDelay > 0) {
-      nmiDelay = (nmiDelay - 1) & 0xFF
+      nmiDelay = (nmiDelay - 1) as uByte
       if (nmiDelay == 0 && nmiOutput && nmiOccurred) triggerNMIHandler
     }
 
@@ -281,7 +282,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
            val offset = (cycle - 1) - spritePositions(i)
            if (offset >= 0 && offset <= 7) {
              val nextOffset = 7 - offset
-             val color = (spritePatterns(i) >> ((nextOffset * 4) & 0xFF) & 0x0F) & 0xFF
+             val color = (spritePatterns(i) >> ((nextOffset * 4) as uByte) & 0x0F) as uByte
              if (color % 4 != 0) pixel = (i, color)
            }
       }
@@ -308,10 +309,10 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     else if (b && !s) color = background
     else {
       if (spriteIndexes(i) == 0 && x < 255) flagSpriteZeroHit = 1
-      if (spritePriorities(i) == 0) color = (sprite | 0x10) & 0xFF
+      if (spritePriorities(i) == 0) color = (sprite | 0x10) as uByte
       else color = background
     }
-    val c = Palette.lookup((ReadPalette(color) & 0xFF) % 64)
+    val c = Palette.lookup((ReadPalette(color) as uByte) % 64)
     back.setRGB(x, y, c)
   }
 
@@ -334,7 +335,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
         renderPixel()
       }
       if (renderLine && fetchCycle) {
-        tileData = (tileData << 4) & 0xFFFFFFFFFFFFFFFFL
+        tileData = (tileData << 4) as uLong
 
         cycle % 8 match {
           case 1 => fetchNameTableByte()
@@ -372,21 +373,21 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   def fetchNameTableByte() {
-    val address = (0x2000 | (vramAddress & 0x0FFF)) & 0xFFFF
+    val address = (0x2000 | (vramAddress & 0x0FFF)) as uShort
     nameTableByte = Read(address)
   }
 
   def fetchAttributeTableByte() {
-    val address = (0x23C0 | (vramAddress & 0x0C00) | ((vramAddress >>> 4) & 0x38) | ((vramAddress >>> 2) & 0x07)) & 0xFFFF
-    val shift = (((vramAddress >> 4) & 4) | (vramAddress & 2)) & 0xFFFF
-    attributeTableByte = (((Read(address) >>> shift) & 3) << 2) & 0xFF
+    val address = (0x23C0 | (vramAddress & 0x0C00) | ((vramAddress >>> 4) & 0x38) | ((vramAddress >>> 2) & 0x07)) as uShort
+    val shift = (((vramAddress >> 4) & 4) | (vramAddress & 2)) as uShort
+    attributeTableByte = (((Read(address) >>> shift) & 3) << 2) as uByte
   }
 
   def fetchLowTileByte() {
     val fineY = (vramAddress >> 12) & 7
     val table = flagBackgroundTable
     val tile = nameTableByte
-    val address = (((0x1000 * table) & 0xFFFF) + (tile * 16 + fineY) & 0xFFFF) & 0xFFFF
+    val address = (((0x1000 * table) as uShort) + (tile * 16 + fineY) as uShort) as uShort
     lowTileByte = Read(address)
   }
 
@@ -394,8 +395,8 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     val fineY = (vramAddress >> 12) & 7
     val table = flagBackgroundTable
     val tile = nameTableByte
-    val address = (((0x1000 * table) & 0xFFFF) + (tile * 16 + fineY) & 0xFFFF) & 0xFFFF
-    highTileByte = Read((address + 8) & 0xFFFF)
+    val address = (((0x1000 * table) as uShort) + (tile * 16 + fineY) as uShort) as uShort
+    highTileByte = Read((address + 8) as uShort)
   }
 
   def storeTileData() {
@@ -404,27 +405,27 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       val a = attributeTableByte
       val p1 = (lowTileByte & 0x80) >> 7
       val p2 = (highTileByte & 0x80) >> 6
-      lowTileByte = (lowTileByte << 1) & 0xFF
-      highTileByte = (highTileByte << 1) & 0xFF
-      data = (data << 4) & 0xFFFFFFFF
-      data |= (a | p1 | p2) & 0xFFFFFFFF
+      lowTileByte = (lowTileByte << 1) as uByte
+      highTileByte = (highTileByte << 1) as uByte
+      data = (data << 4) as uInt
+      data |= (a | p1 | p2) as uInt
     }
 
-    tileData = tileData | (data & 0xFFFFFFFFFFFFFFFFL)
+    tileData = tileData | (data as uLong)
   }
 
-  def fetchTileData = (tileData >> 32) & 0xFFFFFFFFFFFFFFFFL
+  def fetchTileData = (tileData >> 32) as uLong
 
   def backgroundPixel(): Int = {
     if (flagShowBackground == 0) return 0
-    val data = (fetchTileData >> ((((7 - fineX) & 0xFF) * 4) & 0xFF)) & 0xFFFFFFFFFFFFFFFFL
-    ((data & 0x0F) & 0xFF).toInt
+    val data = (fetchTileData >> ((((7 - fineX) as uByte) * 4) as uByte)) as uLong
+    (data & 0x0F).toInt as uByte
   }
 
   def copyY() {
     // vert(vramAddress) = vert(tempVramAddress)
     // vramAddress: .IHGF.ED CBA..... = tempVramAddress: .IHGF.ED CBA.....
-    vramAddress = ((vramAddress & 0x841F) | (tempVramAddress & 0x7BE0)) & 0xFFFF
+    vramAddress = ((vramAddress & 0x841F) | (tempVramAddress & 0x7BE0)) as uShort
   }
 
   def incrementX() {
@@ -435,7 +436,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       vramAddress &= ~0x001F
       // switch horizontal nametable
       vramAddress ^= 0x0400
-    } else vramAddress = (vramAddress + 1) & 0xFFFF
+    } else vramAddress = (vramAddress + 1) as uShort
   }
 
   def incrementY() {
@@ -443,7 +444,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     // if fine Y < 7
     if ((vramAddress & 0x7000) != 0x7000) {
       // increment fine Y
-      vramAddress = (vramAddress + 0x1000) & 0xFFFF
+      vramAddress = (vramAddress + 0x1000) as uShort
     } else {
       // fine Y = 0
       vramAddress &= 0x8FFF
@@ -459,17 +460,17 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
         0
       } else {
         // increment coarse Y
-        (testY + 1) & 0xFFFF
+        (testY + 1) as uShort
       }
       // put coarse Y back into vramAddress
-      vramAddress = ((vramAddress & 0xFC1F) | (y << 5)) & 0xFFFF
+      vramAddress = ((vramAddress & 0xFC1F) | (y << 5)) as uShort
     }
   }
 
   def copyX() {
     // hori(vramAddress) = hori(tempVramAddress)
     // vramAddress: .....F.. ...EDCBA = tempVramAddress: .....F.. ...EDCBA
-    vramAddress = ((vramAddress & 0xFBE0) | (tempVramAddress & 0x041F)) & 0xFFFF
+    vramAddress = ((vramAddress & 0xFBE0) | (tempVramAddress & 0x041F)) as uShort
   }
 
   def evaluateSprites() {
@@ -479,9 +480,9 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     var count = 0
 
     for(i <- 0 until 64) {
-      val y = oamData(i * 4 + 0) & 0xFF
-      val a = oamData(i * 4 + 2) & 0xFF
-      val x = oamData(i * 4 + 3) & 0xFF
+      val y = oamData(i * 4 + 0) as uByte
+      val a = oamData(i * 4 + 2) as uByte
+      val x = oamData(i * 4 + 3) as uByte
       val row = scanLine - y
 
       if (row >= 0 && row < h) {
@@ -489,7 +490,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
           spritePatterns(count) = fetchSpritePattern(i, row)
           spritePositions(count) = x
           spritePriorities(count) = (a >>> 5) & 1
-          spriteIndexes(count) = i & 0xFF
+          spriteIndexes(count) = i as uByte
         }
         count += 1
       }
@@ -503,40 +504,40 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   def fetchSpritePattern(i:Int, initialRow:Int):Int = {
-    val initialTile = oamData(i * 4 + 1) & 0xFF
-    val attributes = oamData(i * 4 + 2) & 0xFF
+    val initialTile = oamData(i * 4 + 1) as uByte
+    val attributes = oamData(i * 4 + 2) as uByte
     var address = 0
     var row = initialRow
     if (this.flagSpriteSize == 0) {
       if ((attributes & 0x80) == 0x80) row = 7 - row
       val table = flagSpriteTable
-      address = (0x1000 * (table & 0xFFFF) + (initialTile & 0xFFFF) * 16 + (row & 0xFFFF)) & 0xFFFF
+      address = (0x1000 * (table as uShort) + (initialTile as uShort) * 16 + (row as uShort)) as uShort
     } else {
       if ((attributes & 0x80) == 0x80) row = 15 - row
       val table = initialTile & 1
       var tile = initialTile & 0xFE
       if (row > 7) {
-          tile = (tile + 1) & 0xFF
+          tile = (tile + 1) as uByte
           row -= 8
       }
-      address = (((0x1000 * table) & 0xFFFF) + ((tile * 16) & 0xFFFF) + row) & 0xFFFF
+      address = (((0x1000 * table) as uShort) + ((tile * 16) as uShort) + row) as uShort
     }
     val a = (attributes & 3) << 2
-    lowTileByte = Read(address) & 0xFF
-    highTileByte = Read((address + 8) & 0xFFFF) & 0xFF
+    lowTileByte = Read(address) as uByte
+    highTileByte = Read((address + 8) as uShort) as uByte
     var data = 0
     for (i <- 0 until 8) {
       var p1, p2 = 0
       if ((attributes & 0x40) == 0x40) {
-        p1 = ((lowTileByte & 1) << 0) & 0xFF
-        p2 = ((highTileByte & 1) << 1) & 0xFF
+        p1 = ((lowTileByte & 1) << 0) as uByte
+        p2 = ((highTileByte & 1) << 1) as uByte
         lowTileByte >>>= 1
         highTileByte >>>= 1
       } else {
-        p1 = ((lowTileByte & 0x80) >>> 7) & 0xFF
-        p2 = ((highTileByte & 0x80) >>> 6) & 0xFF
-        lowTileByte = (lowTileByte << 1) & 0xFF
-        highTileByte = (highTileByte << 1) & 0xFF
+        p1 = ((lowTileByte & 0x80) >>> 7) as uByte
+        p2 = ((highTileByte & 0x80) >>> 6) as uByte
+        lowTileByte = (lowTileByte << 1) as uByte
+        highTileByte = (highTileByte << 1) as uByte
       }
       data <<= 4
       data |= (a | p1 | p2) & 0xFFFFFFFF
