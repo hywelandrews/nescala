@@ -107,7 +107,7 @@ case class CPU(memory:CPUMemory) {
     registers.sp = initialStackPointer
   }
   // Step executes a single CPU instruction
-  def Step():Long = {
+  def Step():Int = {
     if (memory.ppu.DMAStall) {
 
       stall += 513
@@ -150,7 +150,7 @@ case class CPU(memory:CPUMemory) {
 
     instructions(opcode).op(address, registers.pc, mode)
 
-    this.cycles - cycles
+    (this.cycles - cycles).toInt
   }
 
   @inline private def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {

@@ -7,27 +7,29 @@ import ui.Audio
 import scala.annotation.tailrec
 
 final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Mapper, val ppu:PPU, apu:APU, val controller1:Controller, val controller2:Controller) {
-  private def Step(): Long ={
+  private def Step(): Int = {
     val cpuCycles = cpu.Step()
     val ppuCycles = cpuCycles * 3
 
-    for (i <- 0L until ppuCycles) {
+    for (i <- 0 until ppuCycles) {
       ppu.Step(cpu.triggerNMI)
       mapper.Step(ppu.Cycle, ppu.ScanLine, ppu.ShowBackground, ppu.ShowSprites, cpu.triggerIRQ)
     }
 
-    for (i <- 0L until cpuCycles) apu.Step(cpu.memory.Read, cpu.triggerIRQ)
+    for (i <- 0 until cpuCycles){
+      apu.Step(cpu.memory.Read, cpu.triggerIRQ)
+    }
 
     cpuCycles
   }
 
   @tailrec
-  def StepFrame(cpuCycles:Long = 0L, frame:Long = ppu.Frame): Long =
+  def StepFrame(cpuCycles:Int = 0, frame:Long = ppu.Frame): Int =
     if (frame == ppu.Frame) StepFrame(cpuCycles + Step())
     else cpuCycles
 
   def StepSeconds(seconds:Double):Unit = {
-    var cycles = CPU.frequency * seconds
+    var cycles = (CPU.frequency * seconds).toInt
     while (cycles > 0) cycles = cycles - Step()
   }
 
@@ -53,7 +55,7 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
 
   def SetButtons(buttons:Map[Int, Boolean]) = controller1.SetButtons(buttons)
 
-  def Reset = {
+  def Reset() {
     cpu.Reset()
     ppu.Reset()
   }
