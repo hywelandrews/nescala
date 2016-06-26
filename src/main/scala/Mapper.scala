@@ -3,6 +3,7 @@ package nescala
 import helpers.Unsigned._
 
 trait Mapper {
+  def Mirror:Int
   def Read(address:Int): Int
   def Write(address:Int, value: Int)
   def Step(ppuCycle:Long, ppuScanLine:Long, ppuFlagShowBackground:Int, ppuFlagShowSprites:Int, triggerIRQHandler: => Unit) : Unit = ()
@@ -13,7 +14,7 @@ trait Mapper {
   val isSRam: Int => Boolean = x => x >= sRamAddress
 }
 
-object Mirror {
+object MirrorMode {
   val Horizontal = 0
   val Vertical   = 1
   val Single0    = 2
@@ -28,17 +29,20 @@ object Mapper {
       case 1     => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 3     => Mapper3(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 4     => Mapper4(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 7     => Mapper7(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case unsupported => throw new Exception(s"Unhandled mapper: $unsupported")
     }
   }
 }
 
-case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
   private val resetShiftRegister = 0x10
+  private val prgOffsets = Array(0, prgBankOffset(-1))
+  private val chrOffsets = Array(0, 0)
+
   private var shiftRegister: Int = resetShiftRegister
+  private var mirrorMode = mirror
   private var prgMode, chrMode, prgBank, chrBank0, chrBank1, control: Int = 0
-  private val prgOffsets: Array[Int] = Array(0, prgBankOffset(-1))
-  private val chrOffsets: Array[Int] = Array(0, 0)
 
   def Read(address: Int): Int = address match {
     case chr if isChr(address) =>
@@ -63,6 +67,8 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     case saveRam if isSRam(address) => sRam(saveRam - sRamAddress) = value
     case default => throw new IndexOutOfBoundsException(s"Unhandled mapper1 write at address: ${Integer.toHexString(default)}")
   }
+
+  override def Mirror: Int = mirrorMode
 
   private def loadRegister(address: Int, value: Int) = {
     if ((value & 0x80) == 0x80) {
@@ -91,11 +97,11 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     control = value
     chrMode = (value >>> 4) & 1
     prgMode = (value >>> 2) & 3
-    mirror = value & 3 match {
-                case 0 => Mirror.Single0
-                case 1 => Mirror.Single1
-                case 2 => Mirror.Vertical
-                case 3 => Mirror.Horizontal
+    mirrorMode = value & 3 match {
+                case 0 => MirrorMode.Single0
+                case 1 => MirrorMode.Single1
+                case 2 => MirrorMode.Vertical
+                case 3 => MirrorMode.Horizontal
     }
     updateOffsets()
   }
@@ -165,7 +171,7 @@ case class Mapper1(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
   }
 }
 
-case class Mapper2(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+case class Mapper2(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
   var prgBanks = prgRom.length / 0x4000
   var prgBank1 = 0
   var prgBank2 = prgBanks - 1
@@ -192,6 +198,8 @@ case class Mapper2(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
       sRam(index) = value
     case default => System.err.println(s"Unhandled mapper2 write at address: ${Integer.toHexString(default)}")
   }
+
+  override def Mirror: Int = mirror
 }
 
 case class Mapper3(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
@@ -227,19 +235,19 @@ case class Mapper3(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
         sRam(index) = value
     case default => System.err.println(s"Unhandled mapper3 read at address: ${Integer.toHexString(default)}"); throw new Exception
   }
+
+  override def Mirror: Int = mirror
 }
 
-case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
 
-  var register   = 0
-  var registers  = Array.fill[Int](8)(0)
-  var prgMode    = 0
-  var chrMode    = 0
-  var prgOffsets = Array(prgBankOffset(0), prgBankOffset(1), prgBankOffset(-2), prgBankOffset(-1))
-  var chrOffsets = Array.fill[Int](8)(0)
-  var reload     = 0
-  var counter    = 0
-  var irqEnable  = false
+  private val prgOffsets = Array(prgBankOffset(0), prgBankOffset(1), prgBankOffset(-2), prgBankOffset(-1))
+  private val chrOffsets = Array.fill[Int](8)(0)
+  private val registers = Array.fill[Int](8)(0)
+
+  private var register, prgMode, chrMode, reload, counter    = 0
+  private var irqEnable  = false
+  private var mirrorMode = mirror
 
   private def prgBankOffset(index:Int): Int = {
     var i = index
@@ -278,6 +286,8 @@ case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
     case default => System.err.println(s"Unhandled mapper4 read at address: ${Integer.toHexString(default)}"); throw new Exception
   }
 
+  override def Mirror: Int = mirrorMode
+
   private def writeRegister(address:Int, value:Int) = address match {
       case bankSelect if address <= 0x9FFF && address % 2 == 0 => writeBankSelect(value)
       case bankData   if address <= 0x9FFF && address % 2 == 1 => writeBankData(value)
@@ -302,8 +312,8 @@ case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
   }
 
   private def writeMirror(value:Int) = value & 1 match {
-      case 0 => mirror = Mirror.Vertical
-      case 1 => mirror = Mirror.Horizontal
+      case 0 => mirrorMode = MirrorMode.Vertical
+      case 1 => mirrorMode = MirrorMode.Horizontal
   }
 
   private def writeProtect(value:Int) = ()
@@ -382,4 +392,36 @@ case class Mapper4(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Ar
       if (counter == 0 && irqEnable) triggerIRQHandler
     }
   }
+}
+
+case class Mapper7(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
+  private var prgBank = 0
+  private var mirrorMode = mirror
+
+  override def Read(address: Int): Int = address match {
+    case chr if isChr(address) => chrRom(address)
+    case prg1 if isPrg1(address) =>
+      val index = prgBank * 0x8000 + (prg1 - 0x8000)
+      prgRom(index)
+    case saveRam if isSRam(address) =>
+      val index = address - sRamAddress
+      sRam(index)
+    case default => System.err.println(s"Unhandled mapper7 read at address: ${Integer.toHexString(default)}"); throw new Exception
+  }
+
+  override def Write(address: Int, value: Int): Unit = address match {
+    case chr if isChr(address) => chrRom(address) = value
+    case prg1 if isPrg1(address) =>
+      prgBank = value & 7
+       value & 0x10 match {
+        case 0x00 => mirrorMode = MirrorMode.Single0
+        case 0x10 => mirrorMode = MirrorMode.Single1
+       }
+    case saveRam if isSRam(address) =>
+      val index = address - sRamAddress
+      sRam(index) = value
+    case default => System.err.println(s"Unhandled mapper7 write at address: ${Integer.toHexString(default)}")
+  }
+
+  override def Mirror: Int = mirrorMode
 }

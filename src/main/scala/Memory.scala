@@ -45,22 +45,19 @@ trait PPUMemory extends Memory { self:PPU =>
 
   import helpers.Unsigned._
 
-  val mapper:Mapper
-  val cartridge:Cartridge
-
   private val nameTableData = new Array[Int](2048)
   private val paletteData   = new Array[Int](32)
 
   override def Read(address: Int): Int = address % 0x4000 match {
     case mapperAddress if mapperAddress < 0x2000 => mapper.Read(mapperAddress)
-    case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(cartridge.Mirror, ppuNameTable) % 2048)
+    case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(mapper.Mirror, ppuNameTable) % 2048)
     case ppuPalette if ppuPalette < 0x4000 => ReadPalette(ppuPalette % 32)
     case default => System.err.println(s"unhandled ppu memory read at address: ${Integer.toHexString(default)}"); 0
   }
 
   override def Write(address: Int, value: Int) = address % 0x4000 match {
       case mapperAddress if mapperAddress < 0x2000 => mapper.Write(mapperAddress, value)
-      case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(cartridge.Mirror, ppuNameTable) % 2048) = value
+      case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(mapper.Mirror, ppuNameTable) % 2048) = value
       case ppuPalette if ppuPalette < 0x4000 => WritePalette(ppuPalette % 32, value)
       case default => System.err.println(s"unhandled ppu memory write at address: ${Integer.toHexString(default)}")
   }
