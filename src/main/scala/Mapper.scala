@@ -25,11 +25,11 @@ object MirrorMode {
 object Mapper {
   def apply(cartridge:Cartridge): Mapper = {
     cartridge.Mapper match {
-      case 0 | 2 => Mapper2(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
-      case 1     => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
-      case 3     => Mapper3(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
-      case 4     => Mapper4(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
-      case 7     => Mapper7(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 0 | 2 | 71 => Mapper2(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 1          => Mapper1(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 3          => Mapper3(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 4          => Mapper4(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 7          => Mapper7(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case unsupported => throw new Exception(s"Unhandled mapper: $unsupported")
     }
   }

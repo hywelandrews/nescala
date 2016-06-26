@@ -234,14 +234,15 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   def WriteRegister(address: Int, value: Int, dmaRead: Int => Int) = {
     register = value as uByte
     address match {
-      case 0x2000 => writeControl(value)
-      case 0x2001 => writeMask(value)
-      case 0x2003 => writeOAMAddress(value)
-      case 0x2004 => writeOAMData(value)
-      case 0x2005 => writeScroll(value)
-      case 0x2006 => writeAddress(value)
-      case 0x2007 => writeData(value)
-      case 0x4014 => writeDMA(value, dmaRead)
+      case 0x2000   => writeControl(value)
+      case 0x2001   => writeMask(value)
+      case 0x2003   => writeOAMAddress(value)
+      case 0x2004   => writeOAMData(value)
+      case 0x2005   => writeScroll(value)
+      case 0x2006   => writeAddress(value)
+      case 0x2007   => writeData(value)
+      case 0x4014   => writeDMA(value, dmaRead)
+      case default  =>
     }
   }
 

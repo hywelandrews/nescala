@@ -39,11 +39,11 @@ final case class Cartridge(private val path:String) {
     update(raw.map(_.toByte).takeRight(raw.length - headerSize))
   }.getValue.toHexString.toUpperCase
 
-  val Mapper = Header.Control1 >> 4 | Header.Control2 >>> 4 << 1
+  val Mapper = (Header.Control2 & 0xF0) | (Header.Control1 >>> 4)
 
-  val Mirror = Header.Control1 & 1  | (Header.Control1 >>> 3 & 1) << 1
+  val Mirror = (Header.Control1 & 1)  | (((Header.Control1 >>> 3) & 1) << 1)
 
-  val Battery = Header.Control1 >>> 1 & 1
+  val Battery = (Header.Control1 >>> 1) & 1
 
   val HasTrainer = (Header.Control1 & 4) == 4
 
