@@ -35,6 +35,7 @@ The following mappers have been implemented:
 * CNROM (3)
 * MMC3 (4)
 * AOROM (7)
+* MMC2 (9)
 
 ### Known Issues
 

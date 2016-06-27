@@ -184,7 +184,9 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   // $2007: PPUDATA (read)
   private def readData(): Int = {
+
     var value = Read(vramAddress)
+
     // emulate buffered reads
     if (vramAddress % 0x4000 < 0x3F00) {
       val buffered = bufferedData
@@ -313,6 +315,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       if (spritePriorities(i) == 0) color = (sprite | 0x10) as uByte
       else color = background
     }
+
     val c = Palette.lookup((ReadPalette(color) as uByte) % 64)
     back.setRGB(x, y, c)
   }
@@ -532,8 +535,8 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       if ((attributes & 0x40) == 0x40) {
         p1 = ((lowTileByte & 1) << 0) as uByte
         p2 = ((highTileByte & 1) << 1) as uByte
-        lowTileByte >>>= 1
-        highTileByte >>>= 1
+        lowTileByte = (lowTileByte >> 1) as uByte
+        highTileByte = (highTileByte >> 1) as uByte
       } else {
         p1 = ((lowTileByte & 0x80) >>> 7) as uByte
         p2 = ((highTileByte & 0x80) >>> 6) as uByte
@@ -543,6 +546,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       data <<= 4
       data |= (a | p1 | p2) & 0xFFFFFFFF
     }
+
     data
   }
 
