@@ -358,7 +358,7 @@ case class APU(channel: (Int) => Unit) {
     if (s1 != s2) sendSample()
   }
 
-  def sendSample() = channel(output()) //TODO: get channel(filterChain.Step(output())) working
+  def sendSample() = channel(filterChain.Step(output()))
 
   def output(): Int = {
     val p1 = pulse1.output()

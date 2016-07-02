@@ -18,7 +18,7 @@ class Audio {
   )
 
   private val samplesPerFrame = Math.ceil((sampleRate * 2) / 60F).toInt
-  private val buffer = new scala.collection.mutable.ArrayBuffer[Byte]()
+  private val buffer = new scala.collection.mutable.ArrayBuffer[Byte](samplesPerFrame * 2)
 
   private val output = Try {
     val sdl = AudioSystem.getSourceDataLine(format)

@@ -1,7 +1,7 @@
 package nescala
 
 trait Filter {
-  def Step(x:Float):Float
+  def Step(x:Int):Int
 }
 // First order filters are defined by the following parameters.
 // y[n] = B0*x[n] + B1*x[n-1] - A1*y[n-1]
@@ -9,20 +9,20 @@ case class FirstOrderFilter(B0:Float, B1:Float, A1:Float) extends Filter {
   private var prevX = 0F
   private var prevY = 0F
 
-  def Step(x:Float):Float = {
+  def Step(x:Int):Int = {
     val y = (B0 * x) + (B1 * prevX) - (A1 * prevY)
     prevY = y
     prevX = x
-    y
+    y.toInt
   }
 }
 
 case class FilterChain(filters:List[Filter]){
-  def Step(x:Float):Float = filters.foldLeft(x)((y, filter) => filter.Step(y))
+  def Step(x:Int):Int = filters.foldLeft(x)((y, filter) => filter.Step(y))
 }
 
 object FilterChain {
-  def apply(sampleRate:Float):FilterChain = sampleRate match {
+  def apply(sampleRate:Int):FilterChain = sampleRate match {
     case 0 => FilterChain(List.empty[Filter])
     case _ => FilterChain(initializeFilters(sampleRate))
   }
