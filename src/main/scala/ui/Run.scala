@@ -63,9 +63,9 @@ object Run extends SimpleSwingApplication {
     background = mediumGrey
     preferredSize = new swing.Dimension(initialWindowSize.getWidth.toInt, 32)
     contents += gameMenuIcon("eject", Action("")(Eject))
-    contents += gameMenuIcon("reload", Action("")(director.Reset))
-    contents += gameMenuIcon("play", Action("")(director.Resume))
-    contents += gameMenuIcon("pause", Action("")(director.Pause))
+    contents += gameMenuIcon("reload", Action("")(director.Reset()))
+    contents += gameMenuIcon("play", Action("")(director.Resume()))
+    contents += gameMenuIcon("pause", Action("")(director.Pause()))
     contents += separator
     contents += gameMenuIcon("document_add", Action("")(openFileDialog.foreach(StartDisplay)), active = true)
     contents += gameMenuIcon("folder_add", Action("")(OpenFolderDialog), active = true)

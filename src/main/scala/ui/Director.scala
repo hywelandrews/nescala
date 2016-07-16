@@ -3,15 +3,12 @@ package ui
 import java.awt.Canvas
 
 import nescala.BuildInfo
-import org.lwjgl.opengl.Display
-import org.macrogl.Macrogl
+import org.lwjgl.opengl.{Display, GL11}
 
 import scala.swing.Dialog
 import scala.util.{Failure, Success, Try}
 
 case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
-
-  implicit val gl = org.macrogl.Macrogl.default
   
   private var view : Option[View] = None
   private var pause = false
@@ -40,7 +37,7 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
   }
 
   private def step(ts:Long) = {
-    gl.clear(Macrogl.COLOR_BUFFER_BIT)
+    GL11.glClear(GL11.GL_COLOR_BUFFER_BIT)
     // Clear the screen and depth buffer
     val dt = System.nanoTime() - ts
     val nextTimeStamp = System.nanoTime()

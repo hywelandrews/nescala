@@ -8,13 +8,11 @@ import helpers.{File, Rom, Settings, Thumbnail}
 import nescala.{Cartridge, Console, Controller}
 import org.lwjgl.input.Keyboard
 import org.lwjgl.opengl.GL11
-import org.macrogl.Macrogl
 
 import scala.concurrent.{Await, Future}
+import scala.language.postfixOps
 import scala.swing.event.{MouseEntered, MouseExited}
 import scala.swing.{Button, _}
-
-import scala.language.postfixOps
 
 trait View {
   def Open()
@@ -23,7 +21,7 @@ trait View {
   def Update(dt:Double)
 }
 
-case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Macrogl) extends View {
+case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
   val width = 256
   val padding = 0
 
@@ -42,8 +40,8 @@ case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Ma
 
   override def Open(): Unit = {
     audio.start()
-    gl.clearColor(0, 0, 0, 1)
-    gl.enable(Macrogl.TEXTURE_2D)
+    GL11.glClearColor(0, 0, 0, 1)
+    GL11.glEnable(GL11.GL_TEXTURE_2D)
   }
 
   override def Close(): Unit = {
@@ -52,12 +50,12 @@ case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Ma
 
   override def Update(dt:Double): Unit = {
     val seconds = if (dt > 1) 0 else dt
-    updateControllers
+    updateControllers()
     console.StepSeconds(seconds)
-    gl.bindTexture(Macrogl.TEXTURE_2D, texture)
+    GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture)
     Texture.setTexture(console.VideoBuffer())
     drawBuffer()
-    gl.bindTexture(Macrogl.TEXTURE_2D, 0)
+    GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0)
   }
 
   override def Reset(): Unit = console.Reset
@@ -72,7 +70,7 @@ case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Ma
     val (x, y) = if (s1 >= s2) (f * s2 / s1, f)
                  else (f, f * s1 / s2)
 
-    gl.viewport(0, 0, w, h)
+    GL11.glViewport(0, 0, w, h)
 
     GL11.glBegin(GL11.GL_QUADS)
     GL11.glTexCoord2f(0, 1)
@@ -113,7 +111,7 @@ case class GameView(console:Console, audio:Audio, window: Canvas)(implicit gl:Ma
 //    return result
   }
 
-  private def updateControllers = {
+  private def updateControllers() = {
     val turbo = (console.ppu.Frame % 6) < 3
 //    val j1 = readJoystick(Joystick1, turbo)
 //    val j2 = readJoystick(Joystick2, turbo)

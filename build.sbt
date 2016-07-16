@@ -4,16 +4,10 @@ version := "0.1"
 
 scalaVersion := "2.11.8"
 
-resolvers ++= Seq(
-  "Sonatype OSS Snapshots" at
-    "https://oss.sonatype.org/content/repositories/snapshots",
-  "Sonatype OSS Releases" at
-    "https://oss.sonatype.org/content/repositories/releases"
-)
-
 libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
+                            "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
                             "com.typesafe" % "config" % "1.3.0",
-                            "com.storm-enroute" %% "macrogl" % "0.4-SNAPSHOT")
+                            "org.lwjgl.lwjgl" % "lwjgl" % "2.9.1")
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
