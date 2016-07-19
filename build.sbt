@@ -7,17 +7,18 @@ scalaVersion := "2.11.8"
 libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
                             "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
                             "com.typesafe" % "config" % "1.3.0",
-                            "org.lwjgl.lwjgl" % "lwjgl" % "2.9.1")
+                            "org.lwjgl.lwjgl" % "lwjgl" % "2.9.1",
+                            "com.nativelibs4java" %% "scalaxy-streams" % "0.3.4" % "provided")
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
   settings(
     mainClass in (Compile,run) := Some("ui.Run"),
     fork in run := true,
-    scalacOptions in Compile += "-feature",
-    javaOptions in run += "-XX:UseSSE=3",
-    javaOptions in run += "-XX:+UseConcMarkSweepGC",
-    javaOptions in run +=  "-Xms128m",
+    autoCompilerPlugins := true,
+    addCompilerPlugin("com.nativelibs4java" %% "scalaxy-streams" % "0.3.4"),
+    scalacOptions ++= Seq("-Xplugin-require:scalaxy-streams", "-feature", "-optimise", "-Yclosure-elim", "-Yinline"),
+    javaOptions in run ++= Seq("-XX:UseSSE=3", "-XX:+UseConcMarkSweepGC", "-Xms256m"),
     javaOptions += "-Djava.library.path=libs/",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "nescala"

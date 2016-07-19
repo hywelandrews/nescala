@@ -13,7 +13,7 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
   private var view : Option[View] = None
   private var pause = false
 
-  def Menu() = setView(Some(new MenuView(menuWindow)))
+  def Menu() = setView(Some(MenuView(menuWindow)))
 
   def Reset() = view.foreach(x => x.Reset())
 

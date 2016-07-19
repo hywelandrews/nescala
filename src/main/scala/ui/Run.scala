@@ -52,7 +52,7 @@ object Run extends SimpleSwingApplication {
   }
 
   private lazy val gameLibrary: WrapPanel = new WrapPanel(initialWindowSize.getWidth.toInt) {
-    visible = true
+    visible = false
     border = new EmptyBorder(5, 5, 10, 5)
     background = mediumGrey
   }

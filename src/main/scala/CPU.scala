@@ -626,18 +626,14 @@ case class CPU(memory:CPUMemory) {
 
   private def initialiseMemory() = {
     // puts RAM in NES power-on state
-    for (i <- 0 to 0x800) {
-      memory.Write(i, 0xFF)
-    }
+    for (i <- 0 to 0x800) memory.Write(i, 0xFF)
 
     memory.Write(0x0008, 0xF7)
     memory.Write(0x0009, 0xEF)
     memory.Write(0x000A, 0xDF)
     memory.Write(0x000F, 0xBF)
 
-    for (i <- 0x4000 to 0x400F) {
-      memory.Write(i, 0x00)
-    }
+    for (i <- 0x4000 to 0x400F) memory.Write(i, 0x00)
 
     memory.Write(0x4015, 0x00)
     memory.Write(0x4017, 0x00)

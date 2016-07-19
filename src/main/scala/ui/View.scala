@@ -124,22 +124,20 @@ case class MenuView(window: WrapPanel) extends View {
 
   implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
 
-  override def Open(): Unit = {
-    window.visible = true
-    window.contents ++= (Settings.gameLibrary match {
-      case Some(gameLibraryPath) => openGameLibrary(gameLibraryPath)
-      case None => Iterable(selectGameLibrary("Select game library"))
-    })
+  override def Open(): Unit = if(!window.visible) {
+      window.visible = true
+      window.contents ++= (Settings.gameLibrary match {
+        case Some(gameLibraryPath) => openGameLibrary(gameLibraryPath)
+        case None => Iterable(selectGameLibrary("Select game library"))
+      })
   }
-  // Update to page dt of roms
+
   override def Update(dt: Double): Unit = ()
-  // Remove view elements
+
   override def Close(): Unit = {
-    window.contents.clear()
     window.peer.revalidate()
-    window.visible = false
   }
-  // Close & Re-Open
+
   override def Reset(): Unit = {
     Close()
     Open()

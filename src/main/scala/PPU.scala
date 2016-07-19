@@ -418,11 +418,10 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     tileData = tileData | (data as uLong)
   }
 
-  def fetchTileData = (tileData >> 32) as uLong
-
   def backgroundPixel(): Int = {
     if (flagShowBackground == 0) return 0
-    val data = (fetchTileData >> ((((7 - fineX) as uByte) * 4) as uByte)) as uLong
+    val fetchTileData = tileData >>> 32
+    val data = fetchTileData >> ((((7 - fineX) as uByte) * 4) as uByte)
     (data & 0x0F).toInt as uByte
   }
 
