@@ -1,11 +1,11 @@
-package ui
+package com.owlandrews.nescala.ui
 
 import java.nio.{ByteBuffer, ByteOrder}
 import javax.sound.sampled._
 
 import scala.util.Try
 
-class Audio {
+object Audio {
 
   private val sampleRate = 44100f
 

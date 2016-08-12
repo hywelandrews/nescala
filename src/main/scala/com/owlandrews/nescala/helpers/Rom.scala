@@ -1,6 +1,7 @@
-package helpers
+package com.owlandrews.nescala.helpers
 
 import java.awt.Image
+import java.net.URLEncoder
 
 import scala.util.Try
 
@@ -15,12 +16,12 @@ object Rom {
 
   def apply(crc:String, filename:String, filePath:String, thumbnail:Thumbnail):Rom = {
     val node = db \\ "game" filter {
-      _ \\ "@crc" exists (_.text == crc)
+      _ \\ "@crc" exists (_.text.contains(crc))
     }
 
     if (node.nonEmpty) {
       val name = node.head \@ "name"
-      val imageFile = name.replace(" ", "+") + ".jpg"
+      val imageFile = name.replace(" ", "+").replace("'", "%27") + ".jpg"
       val imagePath = s"${applicationFolder.getAbsolutePath}/$imageFile"
       val icon = boxArt.find(_.getName == imageFile)
         .map(x => File.Image(Try(x)))

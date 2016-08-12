@@ -1,4 +1,4 @@
-package ui
+package com.owlandrews.nescala.ui
 
 import java.awt.image._
 import java.nio.IntBuffer

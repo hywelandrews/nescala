@@ -1,4 +1,4 @@
-package nescala
+package com.owlandrews.nescala
 
 import helpers.Unsigned._
 

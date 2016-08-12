@@ -1,4 +1,4 @@
-package helpers
+package com.owlandrews.nescala.helpers
 
 import java.awt.Color
 import java.awt.Dimension

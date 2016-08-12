@@ -1,4 +1,4 @@
-package nescala
+package com.owlandrews.nescala
 
 object Controller {
   val ButtonA       = 0

@@ -1,11 +1,9 @@
-package ui
+package com.owlandrews.nescala.ui
 
 import java.awt._
 import javax.swing.ImageIcon
 import javax.swing.border.EmptyBorder
 
-import helpers.{File, Rom, Settings, Thumbnail}
-import nescala.{Cartridge, Console, Controller}
 import org.lwjgl.input.Keyboard
 import org.lwjgl.opengl.GL11
 
@@ -14,14 +12,18 @@ import scala.language.postfixOps
 import scala.swing.event._
 import scala.swing.{Button, _}
 
+import com.owlandrews.nescala.helpers.{File, Rom, Settings, Thumbnail}
+import com.owlandrews.nescala.{Cartridge, Console, Controller}
+
 trait View {
   def Open()
   def Close()
   def Reset()
   def Update(dt:Double)
+  def Save()
 }
 
-case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
+case class GameView(console:Console, window: Canvas) extends View {
   val width = 256
   val padding = 0
 
@@ -39,13 +41,13 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
   )
 
   override def Open(): Unit = {
-    audio.start()
+    Audio.start()
     GL11.glClearColor(0, 0, 0, 1)
     GL11.glEnable(GL11.GL_TEXTURE_2D)
   }
 
   override def Close(): Unit = {
-    audio.stop()
+    Audio.stop()
   }
 
   override def Update(dt:Double): Unit = {
@@ -59,6 +61,8 @@ case class GameView(console:Console, audio:Audio, window: Canvas) extends View {
   }
 
   override def Reset(): Unit = console.Reset
+
+  override def Save(): Unit = File.SaveState(console)
 
   private def drawBuffer() {
     val frameBounds = window.getBounds
@@ -139,6 +143,8 @@ case class MenuView(window: WrapPanel) extends View {
   }
 
   override def Reset(): Unit = {
+    window.peer.removeAll()
+    window.visible = false
     Close()
     Open()
   }
@@ -148,7 +154,7 @@ case class MenuView(window: WrapPanel) extends View {
     opaque = false
     foreground = new Color(192,197,206)
     cursor = new Cursor(Cursor.HAND_CURSOR)
-    action = Action(s"<html>$message</html>")(Run.OpenFolderDialog)
+    action = Action(s"<html>$message</html>")(Run.OpenFolderDialog())
     listenTo(mouse.moves)
     reactions += {
       case MouseEntered(s, p, m) => foreground = Color.WHITE
@@ -190,4 +196,6 @@ case class MenuView(window: WrapPanel) extends View {
       icon
     }
   }
+
+  override def Save(): Unit = ()
 }

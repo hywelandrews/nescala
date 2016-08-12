@@ -1,4 +1,4 @@
-package helpers
+package com.owlandrews.nescala.helpers
 
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 

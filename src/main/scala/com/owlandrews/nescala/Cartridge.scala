@@ -1,10 +1,13 @@
-package nescala
+package com.owlandrews.nescala
 
-import java.io.{IOException, FileInputStream}
+import java.io.{FileInputStream, IOException}
 import java.util.zip.CRC32
 
 import scala.util.{Failure, Try}
 
+/**
+  * Created by Hywel on 5/30/16.
+  */
 final case class Cartridge(private val path:String) {
 
   private val headerSize  = 16
@@ -27,7 +30,7 @@ final case class Cartridge(private val path:String) {
     override def toString = s"PRG: $NumPRG CHR: $NumCHR Ram: $NumRam"
   }
 
-  private val rom = if (!path.endsWith(".nes")) Failure(new IllegalArgumentException("Invalid filename")) else Try(new FileInputStream(path))
+  private def rom = if (!path.endsWith(".nes")) Failure(new IllegalArgumentException("Invalid filename")) else Try(new FileInputStream(path))
 
   private val raw = rom.map { validFile =>
     Iterator.continually(validFile.read).takeWhile(x => x != -1).toArray

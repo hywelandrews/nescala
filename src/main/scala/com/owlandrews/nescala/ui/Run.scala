@@ -1,4 +1,4 @@
-package ui
+package com.owlandrews.nescala.ui
 
 import java.awt.event.{KeyEvent, KeyListener}
 import java.awt.{BorderLayout, Canvas}
@@ -6,33 +6,36 @@ import javax.swing._
 import javax.swing.border.EmptyBorder
 import javax.swing.filechooser.FileFilter
 
-import helpers.{File, Settings}
-import nescala.BuildInfo
+import scala.swing.{Action, Dimension, MenuBar, _}
+
 import org.lwjgl.LWJGLException
 import org.lwjgl.opengl.Display
 
-import scala.swing.event.{Key, KeyPressed, KeyReleased}
-import scala.swing.{Action, Dimension, MenuBar, _}
+import com.owlandrews.nescala.BuildInfo
+import com.owlandrews.nescala.helpers.{File, Settings}
 
 object Run extends SimpleSwingApplication {
 
   private val scale = 2
   private val initialWindowSize = new Dimension(256 * scale, 240 * scale)
+  private val maximumWidth = 1023
+  private val director:Director = Director(gameCanvas, gameLibrary)
+  private lazy val mediumGrey = new swing.Color(52,61,70)
+
   private var filePath:Option[String] = None
   private var gameThread:Option[Thread] = None
-  private val director:Director = Director(gameCanvas, gameLibrary, new Audio)
-  private def mediumGrey = new swing.Color(52,61,70)
 
   UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
 
   override def startup(args: Array[String]) = {
     super.startup(args)
-    director.Menu
+    director.Menu()
   }
 
   lazy val top = new MainFrame {
     title = s"${BuildInfo.name} ${BuildInfo.version}"
     minimumSize = new Dimension(256, 240)
+    maximumSize = new Dimension(maximumWidth, 960)
     size = initialWindowSize
     contents = scrollWrapper
     peer.setFocusable(true)
@@ -65,20 +68,23 @@ object Run extends SimpleSwingApplication {
     border = new EmptyBorder(0, 5, 0, 15)
     background = mediumGrey
     preferredSize = new swing.Dimension(initialWindowSize.getWidth.toInt, 32)
-    contents += gameMenuIcon("eject", Action("")(Eject))
+    contents += gameMenuIcon("eject", Action("")(Eject()))
     contents += gameMenuIcon("reload", Action("")(director.Reset()))
     contents += gameMenuIcon("play", Action("")(director.Resume()))
     contents += gameMenuIcon("pause", Action("")(director.Pause()))
     contents += separator
     contents += gameMenuIcon("document_add", Action("")(openFileDialog.foreach(StartDisplay)), active = true)
-    contents += gameMenuIcon("folder_add", Action("")(OpenFolderDialog), active = true)
+    contents += gameMenuIcon("folder_add", Action("")(OpenFolderDialog()), active = true)
     visible = true
   }
 
   private val consoleControlNames = List("eject", "reload", "play", "pause")
 
-  private def consoleControls(enable:Boolean) =
-    gameMenu.contents.filter(x => consoleControlNames.contains(x.name)).foreach(_.enabled = enable)
+  private def enableConsoleControls() =
+    gameMenu.contents.filter(x => consoleControlNames.contains(x.name)).foreach(_.enabled = true)
+
+  private def disableConsoleControls() =
+    gameMenu.contents.filter(x => consoleControlNames.contains(x.name)).foreach(_.enabled = false)
 
   private def gameMenuIcon(path:String, gameAction: Action, active: Boolean = false) = new Button {
     name = path
@@ -91,7 +97,7 @@ object Run extends SimpleSwingApplication {
   }
 
   private val separator = new Separator {
-    maximumSize = new Dimension(initialWindowSize.getWidth.toInt, 0)
+    maximumSize = new Dimension(maximumWidth, 0)
     opaque = true
     background = mediumGrey
   }
@@ -126,7 +132,7 @@ object Run extends SimpleSwingApplication {
     }
 
     def detachDisplay():Unit = {
-      director.Close
+      director.Close()
       gameThread.foreach(t => t.join())
     }
   }
@@ -139,29 +145,40 @@ object Run extends SimpleSwingApplication {
     JOptionPane.showMessageDialog(null, scrollPane)
   }
 
-  def Eject = {
+  def Eject() = {
+    director.Save()
+
     top.peer.remove(gameCanvas)
     top.peer.add(scrollWrapper.peer)
-    top.peer.pack()
+
     scrollWrapper.peer.requestFocus()
-    consoleControls(enable = false)
-    director.Menu
+
+    top.peer.revalidate()
+
+    disableConsoleControls()
+
+    director.Menu()
   }
 
   def StartDisplay(path:String) = {
     filePath = Some(path)
+
     top.peer.remove(scrollWrapper.peer)
     top.peer.add(gameCanvas, BorderLayout.CENTER)
+
+    gameCanvas.setSize(scrollWrapper.size)
     gameCanvas.addKeyListener(new Shortcuts)
-    top.peer.pack()
     gameCanvas.requestFocus()
-    consoleControls(enable = true)
+
+    top.peer.revalidate()
+
+    enableConsoleControls()
   }
 
   private class Shortcuts extends KeyListener {
     override def keyPressed(e:KeyEvent): Unit = {
       if (e.isControlDown && e.getKeyCode == KeyEvent.VK_R) director.Reset()
-      if (e.isControlDown && e.getKeyCode == KeyEvent.VK_E) Eject
+      if (e.isControlDown && e.getKeyCode == KeyEvent.VK_E) Eject()
       if (e.isControlDown && e.getKeyCode == KeyEvent.VK_S) director.Pause()
       if (e.isControlDown && e.getKeyCode == KeyEvent.VK_C) director.Resume()
     }
@@ -171,7 +188,7 @@ object Run extends SimpleSwingApplication {
     override def keyReleased(e: KeyEvent): Unit =  {}
   }
 
-  def OpenFolderDialog = {
+  def OpenFolderDialog() = {
     val fileChooser = new FileChooser(){
       title = "Select Game Library"
       fileSelectionMode = FileChooser.SelectionMode.DirectoriesOnly
@@ -180,7 +197,7 @@ object Run extends SimpleSwingApplication {
 
     if(fileChooser.showOpenDialog(null) == FileChooser.Result.Approve){
       Settings.gameLibrary = fileChooser.selectedFile.getAbsolutePath
-      director.Reset
+      director.Reset()
     }
   }
 

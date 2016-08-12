@@ -1,4 +1,4 @@
-package nescala
+package com.owlandrews.nescala
 
 trait Filter {
   def Step(x:Int):Int

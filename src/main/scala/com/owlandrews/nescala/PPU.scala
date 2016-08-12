@@ -1,7 +1,13 @@
-package nescala
+package com.owlandrews.nescala
 
 import java.awt.image.BufferedImage
+
 import helpers.Unsigned._
+
+private object PPU {
+  private lazy val front  = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+  private lazy val back   = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+}
 
 case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
@@ -12,9 +18,6 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   private var scanLine = 0
   // 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
   private var frame = 0L // frame counter
-
-  private var front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
-  private val back = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
 
   private val oamData = Array.fill(256)(0)
   // PPU registers
@@ -89,11 +92,18 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   def ScanLine = scanLine
 
+  def SpriteSize = flagSpriteSize
+
   def Cycle = cycle
 
   def Frame = frame
 
-  def Front = front
+  def Front = PPU.front
+
+//  def ReInit = {
+//    front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+//    back = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
+//  }
 
   // $2000: PPUCTRL
   private def writeControl(value: Int) = {
@@ -317,7 +327,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     }
 
     val c = Palette.lookup((ReadPalette(color) as uByte) % 64)
-    back.setRGB(x, y, c)
+    PPU.back.setRGB(x, y, c)
   }
 
   def Step(triggerNMIHandler: => Unit): Unit = {
@@ -550,7 +560,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   def setVerticalBlank() {
-    front = back
+    PPU.front.setData(PPU.back.getRaster)
     nmiOccurred = true
     nmiChange()
   }

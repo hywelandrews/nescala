@@ -1,4 +1,4 @@
-package ui
+package com.owlandrews.nescala.ui
 
 import java.awt._
 import javax.swing.{JPanel, JScrollPane, SwingUtilities}
@@ -27,7 +27,6 @@ class WrapPanel(defaultWidth: Int, alignment: FlowPanel.Alignment.Value)(content
 
 class WrapLayout(defaultWidth: Int, align: Int = FlowLayout.CENTER, hgap: Int = 5, vgap: Int = 5)
   extends FlowLayout(align, hgap, vgap) {
-  private var preferredLayoutSize: Dimension = null
 
   override def preferredLayoutSize(target: Container) = layoutSize(target, true)
   override def minimumLayoutSize(target: Container) = {

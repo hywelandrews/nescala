@@ -1,4 +1,6 @@
-package nescala
+package com.owlandrews.nescala
+
+import helpers.Unsigned._
 
 trait Memory {
     def Read(address:Int):Int
@@ -43,7 +45,8 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
 
 trait PPUMemory extends Memory { self:PPU =>
 
-  import helpers.Unsigned._
+  val mapper:Mapper
+  val cartridge:Cartridge
 
   private val nameTableData = new Array[Int](2048)
   private val paletteData   = new Array[Int](32)

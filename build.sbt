@@ -13,7 +13,7 @@ libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
   settings(
-    mainClass in (Compile,run) := Some("ui.Run"),
+    mainClass in (Compile,run) := Some("com.owlandrews.nescala.ui.Run"),
     fork in run := true,
     autoCompilerPlugins := true,
     addCompilerPlugin("com.nativelibs4java" %% "scalaxy-streams" % "0.3.4"),
@@ -21,5 +21,5 @@ lazy val root = (project in file(".")).
     javaOptions in run ++= Seq("-XX:UseSSE=3", "-XX:+UseConcMarkSweepGC", "-Xms256m"),
     javaOptions += "-Djava.library.path=libs/",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "nescala"
+    buildInfoPackage := "com.owlandrews.nescala"
   )

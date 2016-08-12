@@ -1,4 +1,4 @@
-package nescala
+package com.owlandrews.nescala
 
 import helpers.Unsigned._
 
@@ -29,7 +29,7 @@ case class APU(channel: (Int) => Unit) {
   private object Pulse {
     val table = for (i <- 0 to 30) yield (95.52 / (8128.0 / i + 100) * 49151).toInt
   }
-  private class Pulse(channel:Int) {
+  private case class Pulse(channel:Int) {
     case class Sweep(var reload:Boolean = false, var enabled:Boolean = false, var negate:Boolean = false,
                      var shift: Int = 0, var period:Int = 0,var value:Int = 0)
 
@@ -123,8 +123,7 @@ case class APU(channel: (Int) => Unit) {
     }
   }
 
-  private class Triangle {
-    var enabled = false
+  private case class Triangle(var enabled:Boolean = false) {
     val length = Length()
     val timer = Timer()
     val duty = Duty()
@@ -168,8 +167,7 @@ case class APU(channel: (Int) => Unit) {
     }
   }
 
-  private class Noise {
-    var enabled = false
+  private case class Noise(var enabled:Boolean = false) {
     var mode = false
     var shiftRegister = 1
     val length = Length()

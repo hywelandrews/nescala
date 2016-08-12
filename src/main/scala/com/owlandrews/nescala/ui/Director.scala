@@ -1,21 +1,21 @@
-package ui
+package com.owlandrews.nescala.ui
 
 import java.awt.Canvas
 
-import nescala.BuildInfo
+import com.owlandrews.nescala.BuildInfo
 import org.lwjgl.opengl.{Display, GL11}
 
 import scala.swing.Dialog
 import scala.util.{Failure, Success, Try}
 
-case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
+case class Director(gameWindow : Canvas, menuWindow: WrapPanel) {
   
   private var view : Option[View] = None
   private var pause = false
 
   def Menu() = setView(Some(MenuView(menuWindow)))
 
-  def Reset() = view.foreach(x => x.Reset())
+  def Reset() = view.foreach(_.Reset())
 
   def Close() = setView(None)
 
@@ -23,12 +23,14 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel, audio: Audio) {
 
   def Resume() = pause = false
 
+  def Save() = view.foreach(_.Save())
+
   def Start(path: String) = loadGameView(path) match {
             case Success(_) => run()
             case Failure(e) => Dialog.showMessage(new {def peer = gameWindow.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
   }
 
-  private def loadGameView(path: String) = Try(nescala.Console(path, audio)).map(console => setView(Some(GameView(console, audio, gameWindow))))
+  private def loadGameView(path: String) = Try(com.owlandrews.nescala.Console(path)).map(console => setView(Some(GameView(console, gameWindow))))
 
   private def setView(view : Option[View]) {
     this.view.foreach(_.Close())

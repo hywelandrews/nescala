@@ -1,19 +1,20 @@
-package nescala
+package com.owlandrews.nescala
 
 import java.io.PrintWriter
 
-import helpers.File
-import ui.Audio
+import com.owlandrews.nescala.helpers.File
+import com.owlandrews.nescala.ui.Audio
+
 import scala.annotation.tailrec
 
-final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Mapper, val ppu:PPU, apu:APU, val controller1:Controller, val controller2:Controller) {
+final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Mapper, val ppu:PPU, apu:APU, val controller1:Controller, val controller2:Controller) extends Serializable {
   private def Step(): Int = {
     val cpuCycles = cpu.Step()
     val ppuCycles = cpuCycles * 3
 
     for (i <- 0 until ppuCycles) {
       ppu.Step(cpu.triggerNMI)
-      mapper.Step(ppu.Cycle, ppu.ScanLine, ppu.ShowBackground, ppu.ShowSprites, cpu.triggerIRQ)
+      mapper.Step(ppu.Cycle, ppu.ScanLine, ppu.ShowBackground, ppu.ShowSprites, ppu.SpriteSize, cpu.triggerIRQ)
     }
 
     for (i <- 0 until cpuCycles){
@@ -74,7 +75,7 @@ object Console
     }
 
     val filename = args(0)
-    val console = Console(filename, new Audio)
+    val console = Console(filename)
 
     start(console)
   }
@@ -91,18 +92,22 @@ object Console
     }
   }
 
-  def apply(filename:String, audio:Audio): Console = {
+  def apply(filename:String): Console = {
 
     val cartridge = Cartridge(filename)
-    val ram = Array.fill(2048)(0)
-    val controller1 = Controller()
-    val controller2 = Controller()
-    val mapper = Mapper(cartridge)
-    val apu = APU(audio.receive)
-    val ppu = PPU(cartridge, mapper)
-    val cpu = CPU(ram, ppu, apu, controller1, controller2, mapper)
 
-    val Console = new Console(cartridge, cpu, ram, mapper, ppu, apu, controller1, controller2)
+    val Console = File.LoadState(cartridge.CRC).getOrElse {
+
+      val ram = Array.fill(2048)(0)
+      val controller1 = Controller()
+      val controller2 = Controller()
+      val mapper = Mapper(cartridge)
+      val apu = APU(Audio.receive)
+      val ppu = PPU(cartridge, mapper)
+      val cpu = CPU(ram, ppu, apu, controller1, controller2, mapper)
+
+      new Console(cartridge, cpu, ram, mapper, ppu, apu, controller1, controller2)
+    }
 
     println(s"""
             |File: $filename

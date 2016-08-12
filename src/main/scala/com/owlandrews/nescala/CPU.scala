@@ -1,7 +1,8 @@
-package nescala
+package com.owlandrews.nescala
+
+import scala.language.postfixOps
 
 import helpers.Unsigned._
-import scala.language.postfixOps
 
 case class CPU(memory:CPUMemory) {
 
@@ -12,7 +13,7 @@ case class CPU(memory:CPUMemory) {
   // pc: program counter    / sp: stack pointer / a:  accumulator   / x:  register
   // y:  register           / c:  carry flag    / z:  zero flag     / i:  interrupt disable flag / d:  decimal mode flag
   // b:  break command flag / u:  unused flag   / v:  overflow flag / n:  negative flag
-  private class Registers(var pc:Int = initialProgramCounter, var sp:Int = initialStackPointer, var a:Int = 0, var x:Int = 0,
+  private case class Registers(var pc:Int = initialProgramCounter, var sp:Int = initialStackPointer, var a:Int = 0, var x:Int = 0,
                           var y:Int = 0, var c:Int = 0, var z:Int = 0, var i:Int = 0, var d:Int = 0,
                           var b:Int = 0, var u:Int = 0, var v:Int = 0, var n:Int = 0)
 
@@ -94,7 +95,7 @@ case class CPU(memory:CPUMemory) {
   private var cycles      = 0L                // number of cycles
   private var interrupt   = interrupts.Empty  // interrupt type to perform
   private var stall       = 0                 // number of cycles to stall
-  private val registers   = new Registers()
+  private val registers   = Registers()
 
   def Reset():Unit = {
     memory.Write(0x4015, 0)
