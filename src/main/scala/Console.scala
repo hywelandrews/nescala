@@ -63,10 +63,13 @@ final class Console(cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Ma
 
 object Console
 {
+
+  lazy val application = BuildInfo.name
+
   def main(args: Array[String])
   {
     if (args.length != 1) {
-      System.err.println("Usage: nescala file")
+      System.err.println(s"Usage: $application file")
       System.exit(1)
     }
 
@@ -83,7 +86,7 @@ object Console
       case input if input == "r" => console.Run()
       case input if input == "s" => print(console.cpu); console.Step()
       case input if input == "q" => System.exit(1)
-      case input if input == "l" => File.Writer("nestest.log") { p => console.Run(p)}
+      case input if input == "l" => File.Writer(s"$application.log") { p => console.Run(p)}
       case _ => println(s"Invalid input, only r (Run) / s (Step) / l (Log) / q (Quit) commands are available")
     }
   }

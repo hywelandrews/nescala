@@ -1,14 +1,17 @@
 package ui
 
+import java.awt.event.{KeyEvent, KeyListener}
 import java.awt.{BorderLayout, Canvas}
 import javax.swing._
 import javax.swing.border.EmptyBorder
 import javax.swing.filechooser.FileFilter
 
 import helpers.{File, Settings}
+import nescala.BuildInfo
 import org.lwjgl.LWJGLException
 import org.lwjgl.opengl.Display
 
+import scala.swing.event.{Key, KeyPressed, KeyReleased}
 import scala.swing.{Action, Dimension, MenuBar, _}
 
 object Run extends SimpleSwingApplication {
@@ -17,7 +20,7 @@ object Run extends SimpleSwingApplication {
   private val initialWindowSize = new Dimension(256 * scale, 240 * scale)
   private var filePath:Option[String] = None
   private var gameThread:Option[Thread] = None
-  private val director:Director = new Director(gameCanvas, gameLibrary, new Audio)
+  private val director:Director = Director(gameCanvas, gameLibrary, new Audio)
   private def mediumGrey = new swing.Color(52,61,70)
 
   UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
@@ -28,7 +31,7 @@ object Run extends SimpleSwingApplication {
   }
 
   lazy val top = new MainFrame {
-    title = s"${nescala.BuildInfo.name} ${nescala.BuildInfo.version}"
+    title = s"${BuildInfo.name} ${BuildInfo.version}"
     minimumSize = new Dimension(256, 240)
     size = initialWindowSize
     contents = scrollWrapper
@@ -149,9 +152,23 @@ object Run extends SimpleSwingApplication {
     filePath = Some(path)
     top.peer.remove(scrollWrapper.peer)
     top.peer.add(gameCanvas, BorderLayout.CENTER)
+    gameCanvas.addKeyListener(new Shortcuts)
     top.peer.pack()
     gameCanvas.requestFocus()
     consoleControls(enable = true)
+  }
+
+  private class Shortcuts extends KeyListener {
+    override def keyPressed(e:KeyEvent): Unit = {
+      if (e.isControlDown && e.getKeyCode == KeyEvent.VK_R) director.Reset()
+      if (e.isControlDown && e.getKeyCode == KeyEvent.VK_E) Eject
+      if (e.isControlDown && e.getKeyCode == KeyEvent.VK_S) director.Pause()
+      if (e.isControlDown && e.getKeyCode == KeyEvent.VK_C) director.Resume()
+    }
+
+    override def keyTyped(e: KeyEvent): Unit = {}
+
+    override def keyReleased(e: KeyEvent): Unit =  {}
   }
 
   def OpenFolderDialog = {

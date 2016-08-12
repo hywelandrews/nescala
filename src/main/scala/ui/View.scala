@@ -11,7 +11,7 @@ import org.lwjgl.opengl.GL11
 
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
-import scala.swing.event.{MouseEntered, MouseExited}
+import scala.swing.event._
 import scala.swing.{Button, _}
 
 trait View {

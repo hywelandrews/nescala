@@ -24,6 +24,10 @@ Keyboard controls are:
 | B                     | X           |
 | A (Turbo)             | A           |
 | B (Turbo)             | S           |
+| Reset                 | CTRL+R      |
+| Eject                 | CTRL+E      |
+| Pause                 | CTRL+S      |
+| Resume                | CTRL+C      |
 
 ### Mappers
 
@@ -40,5 +44,4 @@ The following mappers have been implemented:
 ### Known Issues
 
 * PPU freezes occasionally when drawing above screen height
-* Controller can crash when button mashing
 * APU emulation needs attention in regards to timing and DMA 
