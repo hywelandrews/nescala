@@ -18,9 +18,9 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
       val offset = address % 0x0400
       chrRom(chrOffsets(bank) + offset)
     case prg1 if isPrg1(address) =>
-      val addressOffset = (address - 0x8000) as uShort
-      val bank = addressOffset / 0x2000
-      val offset = addressOffset % 0x2000
+      val baseAddress = (address - 0x8000) as uShort
+      val bank = baseAddress / 0x2000
+      val offset = baseAddress % 0x2000
       prgRom(prgOffsets(bank) + offset)
     case saveRam if address >= 0x6000 =>
       val index = (address - 0x6000) as uShort
@@ -124,7 +124,7 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
         chrOffsets(4) = chrBankOffset(registers(2))
         chrOffsets(5) = chrBankOffset(registers(3))
         chrOffsets(6) = chrBankOffset(registers(4))
-        chrOffsets(7) = chrBankOffset(registers(0))
+        chrOffsets(7) = chrBankOffset(registers(5))
       case 1 =>
         chrOffsets(0) = chrBankOffset(registers(2))
         chrOffsets(1) = chrBankOffset(registers(3))

@@ -7,9 +7,9 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
   private val prgOffsets = Array(0, prgBankOffset(-1))
   private val chrOffsets = Array(0, 0)
 
-  private val suRom = chrRom.length == 0x2000 && prgRom.length == 0x80000
+  private val superPrgBankOffset = if (chrRom.length == 0x2000 && prgRom.length == 0x80000) 0x40000 else 0
 
-  private var suRomLatch = false
+  private var superPrgBankNumber = 0
   private var shiftRegister = resetShiftRegister
   private var mirrorMode = mirror
   private var prgMode, chrMode, prgBank, chrBank0, chrBank1, control: Int = 0
@@ -20,7 +20,7 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
       val offset = chr % 0x1000
       chrRom(chrOffsets(bank) + offset)
     case prg if isPrg1(prg) =>
-      val loadAddress = (address - 0x8000) as uShort
+      val loadAddress = (prg - 0x8000) as uShort
       val bank = loadAddress / 0x4000
       val offset = loadAddress % 0x4000
       prgRom(prgOffsets(bank) + offset)
@@ -29,12 +29,12 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
   }
 
   override def Write(address: Int, value: Int): Unit = address as uShort match {
-    case chr if isChr(address) =>
+    case chr if isChr(chr) =>
       val bank = chr / 0x1000
       val offset = chr % 0x1000
       chrRom(chrOffsets(bank) + offset) = value
-    case prg if isPrg1(address) => loadRegister(prg, value)
-    case saveRam if isSRam(address) => sRam(saveRam - sRamAddress) = value
+    case prg if isPrg1(prg) => loadRegister(prg, value)
+    case saveRam if isSRam(saveRam) => sRam(saveRam - sRamAddress) = value
     case default => throw new IndexOutOfBoundsException(s"Unhandled mapper1 write at address: ${Integer.toHexString(default)}")
   }
 
@@ -78,9 +78,9 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
 
   // CHR bank 0 (internal, $A000-$BFFF)
   private def writeCHRBank0(x: Int):Unit = {
-    if(suRom){
-      chrBank0 = x & 0xF
-      suRomLatch = ((x & 0x10) >> 4) == 1
+    if(superPrgBankOffset > 0){
+      chrBank0 = x & 0x1
+      superPrgBankNumber = (x & 0x10) >> 4
     } else chrBank0 = x & 0x1F
 
     updateOffsets()
@@ -88,7 +88,7 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
 
   // CHR bank 1 (internal, $C000-$DFFF)
   private def writeCHRBank1(x: Int):Unit = {
-    chrBank1 = if(suRom) x & 0xF else x & 0x1F
+    chrBank1 = x & 0x1F
     updateOffsets()
   }
 
@@ -107,7 +107,7 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
   }
 
   private def prgBankOffset(index: Int): Int = {
-    val bankLength = if (suRom) prgRom.length / 2 else prgRom.length
+    val bankLength = prgRom.length - superPrgBankOffset
     val y = if (index >= 0x80) index - 0x100 else index
 
     val offset = findOffset(y, bankLength, 0x4000)
@@ -143,9 +143,9 @@ case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
         chrOffsets(1) = chrBankOffset(chrBank1)
     }
 
-    if(suRom && suRomLatch) {
-      prgOffsets(0) = prgOffsets(0) + 0x40000
-      prgOffsets(1) = prgOffsets(1) + 0x40000
+    if(superPrgBankNumber > 0) {
+      prgOffsets(0) = prgOffsets(0) + superPrgBankOffset
+      prgOffsets(1) = prgOffsets(1) + superPrgBankOffset
     }
   }
 }

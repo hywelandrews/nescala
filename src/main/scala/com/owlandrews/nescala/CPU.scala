@@ -329,7 +329,7 @@ case class CPU(memory:CPUMemory) {
   private lazy val bpl:Operation = (address:Int, pc:Int, mode:Byte) => addBranchCycles{ () => registers.n == 0}(address, pc, mode)
   // BRK - Force Interrupt
   private lazy val brk:Operation = { (address:Int, pc:Int, mode:Byte) =>
-    push16(registers.pc)
+    push16(registers.pc + 1)
     php(0,0,0)
     sei(address, pc, mode)
     registers.pc = read16(0xFFFE)
