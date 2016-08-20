@@ -29,6 +29,7 @@ object Mapper {
       case 4          => Mapper4(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 7          => Mapper7(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case 9          => Mapper9(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
+      case 23         => Mapper23(cartridge.Mirror, cartridge.ChrRom, cartridge.PrgRom, cartridge.SRam)
       case unsupported => throw new Exception(s"Unhandled mapper: $unsupported")
     }
   }

@@ -27,7 +27,8 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel) {
 
   def Start(path: String) = loadGameView(path) match {
             case Success(_) => run()
-            case Failure(e) => Dialog.showMessage(new {def peer = gameWindow.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
+            case Failure(e) =>
+              Dialog.showMessage(new {def peer = gameWindow.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
   }
 
   private def loadGameView(path: String) = Try(com.owlandrews.nescala.Console(path)).map(console => setView(Some(GameView(console, gameWindow))))
