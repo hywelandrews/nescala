@@ -40,6 +40,8 @@ The following mappers have been implemented:
 * MMC3 (4)
 * AOROM (7)
 * MMC2 (9)
+* VRC2b (23)
+* VRC4b (25)
 
 ### Known Issues
 
