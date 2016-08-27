@@ -7,10 +7,8 @@ import javax.swing.border.EmptyBorder
 import javax.swing.filechooser.FileFilter
 
 import scala.swing.{Action, Dimension, MenuBar, _}
-
 import org.lwjgl.LWJGLException
 import org.lwjgl.opengl.Display
-
 import com.owlandrews.nescala.BuildInfo
 import com.owlandrews.nescala.helpers.{File, Settings}
 

@@ -54,8 +54,6 @@ final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mappe
     Run(printWriter)
   }
 
-  def SetButtons(buttons:Map[Int, Boolean]) = controller1.SetButtons(buttons)
-
   def Reset() {
     cpu.Reset()
     ppu.Reset()

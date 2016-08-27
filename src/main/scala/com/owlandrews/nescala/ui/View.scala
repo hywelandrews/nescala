@@ -5,15 +5,16 @@ import javax.swing.ImageIcon
 import javax.swing.border.EmptyBorder
 
 import org.lwjgl.input.Keyboard
+import org.lwjgl.input.{Controllers => LWJGLControllers}
 import org.lwjgl.opengl.GL11
 
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.swing.event._
 import scala.swing.{Button, _}
-
-import com.owlandrews.nescala.helpers.{File, Rom, Settings, Thumbnail}
+import com.owlandrews.nescala.helpers._
 import com.owlandrews.nescala.{Cartridge, Console, Controller}
+
 
 trait View {
   def Open()
@@ -29,7 +30,7 @@ case class GameView(console:Console, window: Canvas) extends View {
 
   private val texture = Texture.createTexture()
 
-  val defaultJoystick = Map(
+  val defaultInput = Map(
     Controller.ButtonA      -> false,
     Controller.ButtonB      -> false,
     Controller.ButtonStart  -> false,
@@ -40,13 +41,20 @@ case class GameView(console:Console, window: Canvas) extends View {
     Controller.ButtonRight  -> false
   )
 
+  lazy val getGamePad:Option[GamePad] =
+    Option.apply[GamePad](if(LWJGLControllers.getControllerCount > 0) GamePad(LWJGLControllers.getController(0)) else null)
+
   override def Open(): Unit = {
+    LWJGLControllers.create()
+    LWJGLControllers.poll()
+
     Audio.start()
     GL11.glClearColor(0, 0, 0, 1)
     GL11.glEnable(GL11.GL_TEXTURE_2D)
   }
 
   override def Close(): Unit = {
+    LWJGLControllers.destroy()
     Audio.stop()
   }
 
@@ -60,7 +68,7 @@ case class GameView(console:Console, window: Canvas) extends View {
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0)
   }
 
-  override def Reset(): Unit = console.Reset
+  override def Reset(): Unit = console.Reset()
 
   override def Save(): Unit = File.SaveState(console)
 
@@ -89,8 +97,8 @@ case class GameView(console:Console, window: Canvas) extends View {
   }
 
   private def readKeys(turbo:Boolean):Map[Int, Boolean] = Map(
-    Controller.ButtonA      -> Keyboard.isKeyDown(Keyboard.KEY_Z),
-    Controller.ButtonB      -> Keyboard.isKeyDown(Keyboard.KEY_X),
+    Controller.ButtonA      -> (Keyboard.isKeyDown(Keyboard.KEY_Z) || (turbo && Keyboard.isKeyDown(Keyboard.KEY_A))),
+    Controller.ButtonB      -> (Keyboard.isKeyDown(Keyboard.KEY_X) || (turbo && Keyboard.isKeyDown(Keyboard.KEY_S))),
     Controller.ButtonStart  -> Keyboard.isKeyDown(Keyboard.KEY_RETURN),
     Controller.ButtonSelect -> Keyboard.isKeyDown(Keyboard.KEY_RSHIFT),
     Controller.ButtonUp     -> Keyboard.isKeyDown(Keyboard.KEY_UP),
@@ -99,28 +107,21 @@ case class GameView(console:Console, window: Canvas) extends View {
     Controller.ButtonRight  -> Keyboard.isKeyDown(Keyboard.KEY_RIGHT)
   )
 
-  private def readJoystick(turbo:Boolean) = {
-
-    defaultJoystick
-//    val axes = GetJoystickAxes(joy)
-//    val buttons = GetJoystickButtons(joy)
-//    result[ButtonA] = buttons[0] == 1 || (turbo && buttons[2] == 1)
-//    result[ButtonB] = buttons[1] == 1 || (turbo && buttons[3] == 1)
-//    result[ButtonSelect] = buttons[6] == 1
-//    result[ButtonStart] = buttons[7] == 1
-//    result[ButtonUp] = axes[1] < -0.5
-//    result[ButtonDown] = axes[1] > 0.5
-//    result[ButtonLeft] = axes[0] < -0.5
-//    result[ButtonRight] = axes[0] > 0.5
-//    return result
-  }
+  private def readGamePad(gamePad:GamePad, turbo:Boolean) = Map(
+      Controller.ButtonA      -> (gamePad.isAButtonPressed || (turbo && gamePad.isATurboButtonPressed)),
+      Controller.ButtonB      -> (gamePad.isBButtonPressed || (turbo && gamePad.isBTurboButtonPressed)),
+      Controller.ButtonStart  -> gamePad.isStartButtonPressed,
+      Controller.ButtonSelect -> gamePad.isSelectButtonPressed,
+      Controller.ButtonUp     -> gamePad.isUpButtonPressed,
+      Controller.ButtonDown   -> gamePad.isDownButtonPressed,
+      Controller.ButtonLeft   -> gamePad.isLeftButtonPressed,
+      Controller.ButtonRight  -> gamePad.isRightButtonPressed
+  )
 
   private def updateControllers() = {
     val turbo = (console.ppu.Frame % 6) < 3
-//    val j1 = readJoystick(Joystick1, turbo)
-//    val j2 = readJoystick(Joystick2, turbo)
-    console.controller1.SetButtons(readKeys(turbo))
-    console.controller2.SetButtons(readJoystick(turbo))
+    console.controller1.SetButtons(getGamePad.map(gamePad => readGamePad(gamePad, turbo)).getOrElse(readKeys(turbo)))
+    console.controller2.SetButtons(getGamePad.map(_ => readKeys(turbo)).getOrElse(defaultInput))
   }
 }
 

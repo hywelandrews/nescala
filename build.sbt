@@ -8,7 +8,9 @@ libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0-M
                             "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
                             "com.typesafe" % "config" % "1.3.0",
                             "org.lwjgl.lwjgl" % "lwjgl" % "2.9.1",
-                            "com.nativelibs4java" %% "scalaxy-streams" % "0.3.4" % "provided")
+                            "com.nativelibs4java" %% "scalaxy-streams" % "0.3.4" % "provided",
+                            "net.java.jinput" % "jinput-platform" % "2.0.6" pomOnly()
+)
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
