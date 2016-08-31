@@ -8,7 +8,6 @@ import org.lwjgl.input.Keyboard
 import org.lwjgl.input.{Controllers => LWJGLControllers}
 import org.lwjgl.opengl.GL11
 
-import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.swing.event._
 import scala.swing.{Button, _}
@@ -127,8 +126,6 @@ case class GameView(console:Console, window: Canvas) extends View {
 
 case class MenuView(window: WrapPanel) extends View {
 
-  implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
-
   override def Open(): Unit = if(!window.visible) {
       window.visible = true
       window.contents ++= (Settings.gameLibrary match {
@@ -182,16 +179,13 @@ case class MenuView(window: WrapPanel) extends View {
     val romFiles = romFolder.listFiles(File.Filter).toList
     val thumbnail = new Thumbnail(window.background)
 
-    import scala.concurrent.duration._
+    val roms = romFiles.par.map { file =>
+      val cart = Cartridge(file.getAbsolutePath)
+      Rom(cart.CRC, file.getName, file.getAbsolutePath, thumbnail)
+    }.toList
 
-    val romResult = Await.result(Future.sequence(romFiles map { file =>
-        Future(Cartridge(file.getAbsolutePath)) map { cartridge =>
-          cartridge.CRC -> Rom(cartridge.CRC, file.getName, file.getAbsolutePath, thumbnail)
-        }
-    }), 2 minutes)
-
-    if (romResult.isEmpty) Iterable(selectGameLibrary("No games found. Select game library"))
-    else romResult.map { case (crc, rom) =>
+    if (roms.isEmpty) Iterable(selectGameLibrary("No games found. Select game library"))
+    else roms.map { rom =>
       val icon = gameIcon(rom.title, new ImageIcon(rom.thumbnail), rom.path)
       icon.peer.setText(rom.title) // Needed because adding Actions to Buttons overwrites their text
       icon

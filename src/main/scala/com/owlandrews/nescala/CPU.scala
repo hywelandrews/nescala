@@ -139,11 +139,10 @@ case class CPU(memory:CPUMemory) {
 
     interrupt = interrupts.Empty
 
-    val pc:Int = registers.pc
-    val opcode:Int = memory.Read(pc)
-    val mode:Byte = instructions(opcode).mode
+    val opcode = memory.Read(registers.pc)
+    val mode = instructions(opcode).mode
 
-    val (address: Int, pageCrossed: Boolean) = getAddressWithPageCrossed(pc, mode)
+    val (address: Int, pageCrossed: Boolean) = getAddressWithPageCrossed(mode)
 
     registers.pc += instructions(opcode).size
     this.cycles += instructions(opcode).cycle
@@ -154,26 +153,26 @@ case class CPU(memory:CPUMemory) {
     (this.cycles - cycles).toInt
   }
 
-  @inline private def getAddressWithPageCrossed(pc: Int, mode: Byte): (Int, Boolean) = mode match {
-      case addressModes.Absolute => read16(pc + 1) -> false
-      case addressModes.AbsoluteX => val addressOffsetX = (read16(pc + 1) + registers.x) as uShort
+  @inline private def getAddressWithPageCrossed(mode: Byte): (Int, Boolean) = mode match {
+      case addressModes.Absolute => read16(registers.pc + 1) -> false
+      case addressModes.AbsoluteX => val addressOffsetX = (read16(registers.pc + 1) + registers.x) as uShort
         addressOffsetX -> pagesDiffer(addressOffsetX - registers.x, addressOffsetX)
       case addressModes.AbsoluteY => val addressOffsetY = (read16(registers.pc + 1) + registers.y) as uShort
         addressOffsetY -> pagesDiffer(addressOffsetY - registers.y, addressOffsetY)
       case addressModes.Accumulator => 0 -> false
-      case addressModes.Immediate => pc + 1 -> false
+      case addressModes.Immediate => registers.pc + 1 -> false
       case addressModes.Implied => 0 -> false
       case addressModes.IndexedIndirect => read16Bug((memory.Read(registers.pc + 1) + registers.x) as uByte) -> false
-      case addressModes.Indirect => read16Bug(read16(pc + 1)) -> false
+      case addressModes.Indirect => read16Bug(read16(registers.pc + 1)) -> false
       case addressModes.IndirectIndexed => val addressOffsetY = (read16Bug(memory.Read(registers.pc + 1)) + registers.y) as uShort
         addressOffsetY -> pagesDiffer(addressOffsetY - registers.y, addressOffsetY)
       case addressModes.Relative =>
-        val offset = memory.Read(pc + 1)
-        if (offset < 0x80) pc + 2 + offset -> false
-        else pc + 2 + offset - 0x100 -> false
-      case addressModes.ZeroPage => memory.Read(pc + 1) -> false
-      case addressModes.ZeroPageX => ((memory.Read(pc + 1) + registers.x) as uByte) -> false
-      case addressModes.ZeroPageY => ((memory.Read(pc + 1) + registers.y) as uByte) -> false
+        val offset = memory.Read(registers.pc + 1)
+        if (offset < 0x80) registers.pc + 2 + offset -> false
+        else registers.pc + 2 + offset - 0x100 -> false
+      case addressModes.ZeroPage => memory.Read(registers.pc + 1) -> false
+      case addressModes.ZeroPageX => ((memory.Read(registers.pc + 1) + registers.x) as uByte) -> false
+      case addressModes.ZeroPageY => ((memory.Read(registers.pc + 1) + registers.y) as uByte) -> false
   }
 
   // Read16 reads two bytes using Read to return a double-word value
@@ -393,7 +392,7 @@ case class CPU(memory:CPUMemory) {
   private lazy val jmp:Operation = (address:Int, pc:Int, mode:Byte) => registers.pc = address
   // JSR - Jump to Subroutine
   private lazy val jsr:Operation = (address:Int, pc:Int, mode:Byte) => {
-    push16(registers.pc - 1)
+    push16((registers.pc - 1) as uShort)
     registers.pc = address
   }
   // LDA - Load Accumulator
@@ -578,7 +577,7 @@ case class CPU(memory:CPUMemory) {
     val opcode  = memory.Read(registers.pc)
     val name    = instructions(opcode).name
     val mode    = instructions(opcode).mode
-    val (address, pageCrossed) = getAddressWithPageCrossed(registers.pc, mode)
+    val (address, pageCrossed) = getAddressWithPageCrossed(mode)
 
     def formatHex(i: Int, size: Int = 2):String = Integer.toHexString(i).toUpperCase.reverse.padTo(size, 0).reverse.mkString.grouped(2).reduce{
       (a, b) => if (a == "00" && size == 2) b.reverse.padTo(2, "0").reverse.mkString else s"${a.reverse.padTo(2, "0").reverse.mkString}${b.reverse.padTo(2, "0").reverse.mkString}"

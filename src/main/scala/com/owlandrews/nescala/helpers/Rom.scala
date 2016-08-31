@@ -1,7 +1,6 @@
 package com.owlandrews.nescala.helpers
 
 import java.awt.Image
-import java.net.URLEncoder
 
 import scala.util.Try
 
@@ -9,15 +8,14 @@ case class Rom(title:String, thumbnail:Image, path:String)
 
 object Rom {
   private val applicationFolder = File.ApplicationFolder
-  private lazy val db = File.Xml("/database.xml")
+  private val nodes = File.Xml("/database.xml") \\ "game"
   private lazy val boxArt = applicationFolder.listFiles()
   private lazy val defaultIcon = File.Image("/cartridge.png").getOrElse(throw new Exception("Unable to load resource cartridge.png"))
   private lazy val url = "https://s3.amazonaws.com/nescala/boxart/"
 
   def apply(crc:String, filename:String, filePath:String, thumbnail:Thumbnail):Rom = {
-    val node = db \\ "game" filter {
-      _ \\ "@crc" exists (_.text.contains(crc))
-    }
+
+    val node = nodes filter (_ \\ "@crc" exists (_.text.contains(crc)))
 
     if (node.nonEmpty) {
       val name = node.head \@ "name"
