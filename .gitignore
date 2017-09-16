@@ -4,4 +4,5 @@ project/target
 roms/
 target/
 *.log
-*.TODO
+*.todo
+dist/
