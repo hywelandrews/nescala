@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import helpers.Unsigned._
-
 object Palette {
 
   private val color =

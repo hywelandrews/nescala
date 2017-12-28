@@ -2,8 +2,6 @@ package com.owlandrews.nescala
 
 import scala.language.postfixOps
 
-import helpers.Unsigned._
-
 case class CPU(memory:CPUMemory) {
 
   import CPU.{addressModes, interrupts}

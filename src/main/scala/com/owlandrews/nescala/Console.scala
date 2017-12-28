@@ -12,12 +12,12 @@ final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mappe
     val cpuCycles = cpu.Step()
     val ppuCycles = cpuCycles * 3
 
-    for (i <- 0 until ppuCycles) {
+    for (_ <- 0 until ppuCycles) {
       ppu.Step(cpu.triggerNMI)
       mapper.Step(ppu.Cycle, ppu.ScanLine, ppu.ShowBackground, ppu.ShowSprites, ppu.SpriteSize, cpu.triggerIRQ)
     }
 
-    for (i <- 0 until cpuCycles){
+    for (_ <- 0 until cpuCycles) {
       apu.Step(cpu.memory.Read, cpu.triggerIRQ)
     }
 

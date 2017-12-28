@@ -2,7 +2,7 @@ name := "nescala"
 
 version := "0.2"
 
-scalaVersion := "2.12.2"
+scalaVersion := "2.12.4"
 
 libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0",
                             "org.scala-lang.modules" %% "scala-xml" % "1.0.6",
@@ -17,7 +17,7 @@ lazy val root = (project in file(".")).
     autoCompilerPlugins := true,
     mainClass in Compile := Some("com.owlandrews.nescala.ui.Run"),
     fork in run := true,
-    scalacOptions ++= Seq("-feature", "-optimise", "-deprecation"),
+    scalacOptions ++= Seq("-feature", "-deprecation"),
     javaOptions in run ++= Seq("-XX:UseSSE=3", "-XX:+UseConcMarkSweepGC", "-Xms256m"),
     javaOptions += "-Djava.library.path=libs/",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),

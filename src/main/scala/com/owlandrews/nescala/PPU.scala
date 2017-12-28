@@ -2,8 +2,6 @@ package com.owlandrews.nescala
 
 import java.awt.image.BufferedImage
 
-import helpers.Unsigned._
-
 private object PPU {
   private lazy val front  = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
   private lazy val back   = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)

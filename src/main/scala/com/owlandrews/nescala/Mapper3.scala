@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import com.owlandrews.nescala.helpers.Unsigned._
-
 case class Mapper3(var mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
 
   var prgBanks = prgRom.length / 0x4000

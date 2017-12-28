@@ -1,6 +1,7 @@
-package com.owlandrews.nescala.helpers
+package com.owlandrews
 
-object Unsigned {
+//noinspection SpellCheckingInspection
+package object nescala {
 
   sealed trait UType {
     val mask: Int
@@ -23,7 +24,7 @@ object Unsigned {
   }
 
   implicit class UnsignedIntOps(val lhs: Int) extends AnyVal {
-     def as[T >: UType](rhs: T): Int = rhs match {
+    def as[T >: UType](rhs: T): Int = rhs match {
       case `uByte`  => lhs & uByte.mask
       case `uShort` => lhs & uShort.mask
       case `uInt`   => lhs & uInt.mask
@@ -31,7 +32,7 @@ object Unsigned {
   }
 
   implicit class UnsignedLongOps(val lhs: Long) extends AnyVal {
-     def as[T >: uLong.type](rhs: T): Long = rhs match {
+    def as[T >: uLong.type](rhs: T): Long = rhs match {
       case `uByte`  => lhs & uByte.mask
       case `uShort` => lhs & uShort.mask
       case `uInt`   => lhs & uInt.mask
@@ -39,4 +40,3 @@ object Unsigned {
     }
   }
 }
-

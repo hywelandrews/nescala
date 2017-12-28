@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import helpers.Unsigned._
-
 trait Memory {
     def Read(address:Int):Int
     def Write(address:Int, value:Int)
@@ -35,7 +33,7 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
       case ppuAddress if isPpu2(address) => ppu.WriteRegister(ppuAddress, value, this.Read)
       case apuAddress if isApu2(address)  => apu.WriteRegister(apuAddress, value)
       case controller1Address if isController1(address)  => controller1.Write(value)
-                                                            controller2.Write(value)
+      case controller2Address if address == 0x4017 => controller2.Write(value)
       case apuAddress if address == 0x4017 => apu.WriteRegister(apuAddress, value)
       //case ioAddress if address < 0x6000 => // TODO: I/O registers
       case mapperAddress if isMapper(address)  => mapper.Write(address, value)

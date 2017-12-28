@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import com.owlandrews.nescala.helpers.Unsigned._
-
 case class Mapper7(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
   private var prgBank = 0
   private var mirrorMode = mirror

@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import helpers.Unsigned._
-
 case class APU(channel: (Int) => Unit) {
 
   var DMAStall = false

@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import helpers.Unsigned._
-
 case class Mapper1(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
   private val resetShiftRegister = 0x10
   private val prgOffsets = Array(0, prgBankOffset(-1))

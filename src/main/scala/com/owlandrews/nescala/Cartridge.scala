@@ -4,8 +4,6 @@ import java.io.IOException
 import java.nio.file.{Files, Paths}
 import java.util.zip.CRC32
 
-import com.owlandrews.nescala.helpers.Unsigned._
-
 import scala.util.{Failure, Try}
 
 final case class Cartridge(private val path:String) {

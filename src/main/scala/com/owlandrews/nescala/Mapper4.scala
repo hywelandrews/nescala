@@ -1,7 +1,5 @@
 package com.owlandrews.nescala
 
-import com.owlandrews.nescala.helpers.Unsigned._
-
 case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[Int]) extends Mapper {
 
   private val prgOffsets = Array(prgBankOffset(0), prgBankOffset(1), prgBankOffset(-2), prgBankOffset(-1))
