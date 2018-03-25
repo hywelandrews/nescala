@@ -2,11 +2,11 @@ name := "nescala"
 
 version := "0.2"
 
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.5"
 
-libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.0",
-                            "org.scala-lang.modules" %% "scala-xml" % "1.0.6",
-                            "com.typesafe" % "config" % "1.3.0",
+libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.2",
+                            "org.scala-lang.modules" %% "scala-xml" % "1.1.0",
+                            "com.typesafe" % "config" % "1.3.3",
                             "org.lwjgl.lwjgl" % "lwjgl" % "2.9.3",
                             "net.java.jinput" % "jinput-platform" % "2.0.7" pomOnly()
 )

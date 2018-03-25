@@ -46,14 +46,18 @@ case class GameView(console:Console, window: Canvas) extends View {
   override def Open(): Unit = {
     LWJGLControllers.create()
     LWJGLControllers.poll()
+    Keyboard.create()
+    Keyboard.poll()
 
     Audio.start()
+
     GL11.glClearColor(0, 0, 0, 1)
     GL11.glEnable(GL11.GL_TEXTURE_2D)
   }
 
   override def Close(): Unit = {
     LWJGLControllers.destroy()
+    Keyboard.destroy()
     Audio.stop()
   }
 

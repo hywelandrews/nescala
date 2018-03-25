@@ -53,8 +53,8 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel) {
     var timestamp = System.nanoTime()
     while (view.isDefined) {
       if (!pause) timestamp = step(timestamp)
+      Display.update()
       Display.sync(60)
-      Display.update(true)
     }
     Display.destroy()
   }
