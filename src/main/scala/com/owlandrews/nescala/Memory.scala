@@ -18,11 +18,11 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
     case ramAddress if isRam(address)   => ram(ramAddress % 0x0800)
     case ppuAddress if isPpu1(address)  => ppu.ReadRegister(0x2000 + ppuAddress % 8)
     case ppuAddress if isPpu2(address)  => ppu.ReadRegister(ppuAddress)
-    case apuAddress if isApu2(address)  => apu.ReadRegister(address)
+    case apuAddress if isApu2(address)  => apu.ReadRegister(apuAddress)
     case controller1Address if isController1(address) => controller1.Read()
     case controller2Address if address == 0x4017 => controller2.Read()
     //case ioAddress if address < 0x6000 => // TODO: I/O registers
-    case mapperAddress if isMapper(address) => mapper.Read(address)
+    case mapperAddress if isMapper(address) => mapper.Read(mapperAddress)
     case default => System.err.println(s"Unhandled cpu memory read at address: ${Integer.toHexString(default)}"); 0
   }
 

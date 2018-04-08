@@ -137,7 +137,6 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     if (nmiOccurred) result = (result | (1 << 7)) as uByte
     nmiOccurred = false
     nmiChange()
-    // writeToggle:     = 0
     writeToggle = 0
     result
   }
@@ -238,7 +237,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     case 0x2002 => readStatus()
     case 0x2004 => readOAMData()
     case 0x2007 => readData()
-    case default => 0
+    case _ => 0
   }
 
   def WriteRegister(address: Int, value: Int, dmaRead: Int => Int) = {
@@ -252,7 +251,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
       case 0x2006   => writeAddress(value)
       case 0x2007   => writeData(value)
       case 0x4014   => writeDMA(value, dmaRead)
-      case default  =>
+      case _ =>
     }
   }
 
@@ -286,19 +285,22 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     }
   }
 
+  private val emptyPixel = (0, 0)
+
   private def spritePixel(): (Int, Int) = {
-    var pixel = (0, 0)
-    if (flagShowSprites != 0) {
-      for (i <- 0 until spriteCount){
-           val offset = (cycle - 1) - spritePositions(i)
-           if (offset >= 0 && offset <= 7) {
-             val nextOffset = 7 - offset
-             val color = (spritePatterns(i) >> ((nextOffset * 4) as uByte) & 0x0F) as uByte
-             if (color % 4 != 0) pixel = (i, color)
-           }
-      }
+
+    if(flagShowSprites == 0) return emptyPixel
+
+    for (i <- 0 until spriteCount) {
+             val offset = (cycle - 1) - spritePositions(i)
+             if (offset >= 0 && offset <= 7) {
+               val nextOffset = 7 - offset
+               val color = (spritePatterns(i) >> ((nextOffset * 4) as uByte) & 0x0F) as uByte
+               if (color % 4 != 0) return (i, color)
+             }
     }
-    pixel
+
+    emptyPixel
   }
 
   private def renderPixel() {
@@ -311,20 +313,19 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
     if (x < 8 && flagShowLeftSprites == 0) sprite = 0
 
-    val b = background % 4 != 0
-    val s = sprite % 4 != 0
+    val backgroundRendering = background % 4 != 0
+    val spriteRendering = sprite % 4 != 0
     var color = 0
 
-    if (!b && !s) color = 0
-    else if (!b && s) color = sprite | 0x10
-    else if (b && !s) color = background
+    if (!backgroundRendering && !spriteRendering) color = 0
+    else if (!backgroundRendering && spriteRendering) color = (sprite | 0x10) as uByte
+    else if (backgroundRendering && !spriteRendering) color = background
     else {
       if (spriteIndexes(i) == 0 && x < 255) flagSpriteZeroHit = 1
-      if (spritePriorities(i) == 0) color = (sprite | 0x10) as uByte
-      else color = background
+      color = if (spritePriorities(i) == 0) (sprite | 0x10) as uByte else background
     }
 
-    val c = Palette.lookup((ReadPalette(color) as uByte) % 64)
+    val c = Palette.lookup((ReadPalette(color) as uShort) % 64)
     PPU.back.setRGB(x, y, c)
   }
 
@@ -484,6 +485,8 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     vramAddress = ((vramAddress & 0xFBE0) | (tempVramAddress & 0x041F)) as uShort
   }
 
+  var isATransparentSprite = 0
+
   def evaluateSprites() {
 
     val h = if (flagSpriteSize == 0) 8
@@ -519,7 +522,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     val attributes = oamData(i * 4 + 2) as uByte
     var address = 0
     var row = initialRow
-    if (this.flagSpriteSize == 0) {
+    if (flagSpriteSize == 0) {
       if ((attributes & 0x80) == 0x80) row = 7 - row
       val table = flagSpriteTable
       address = (0x1000 * (table as uShort) + (initialTile as uShort) * 16 + (row as uShort)) as uShort

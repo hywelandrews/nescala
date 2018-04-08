@@ -29,6 +29,8 @@ Keyboard controls are:
 | Pause                 | CTRL+S      |
 | Resume                | CTRL+C      |
 
+PS3/4 and XBOX 360 Controllers are also supported
+
 ### Mappers
 
 The following mappers have been implemented:
@@ -45,5 +47,4 @@ The following mappers have been implemented:
 
 ### Known Issues
 
-* PPU freezes occasionally when drawing above screen height
-* APU emulation needs attention in regards to timing and DMA 
+* APU emulation needs attention in regards to timing and DMA
