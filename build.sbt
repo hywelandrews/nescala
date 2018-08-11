@@ -2,9 +2,9 @@ name := "nescala"
 
 version := "0.3"
 
-scalaVersion := "2.12.5"
+scalaVersion := "2.12.6"
 
-libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.2",
+libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-swing" % "2.0.3",
                             "org.scala-lang.modules" %% "scala-xml" % "1.1.0",
                             "com.typesafe" % "config" % "1.3.3",
                             "org.lwjgl.lwjgl" % "lwjgl" % "2.9.3",
