@@ -10,7 +10,7 @@ import org.lwjgl.opengl.GL11
 
 import scala.language.postfixOps
 import scala.swing.event._
-import scala.swing.{Button, _}
+import scala.swing.{Button, Action, Alignment}
 import com.owlandrews.nescala.helpers._
 import com.owlandrews.nescala.{Cartridge, Console, Controller}
 

@@ -6,9 +6,15 @@ A NES emulator written in Scala.
 
 ![Screenshots](http://i.imgur.com/PiG6XCD.jpg)
 
+### Requirements
+
+- Java 1.8+
+
 ### How to run
 
-    ~ sbt run 
+    ~ unzip nescala-<version>.zip
+    ~ cd nescala-<version>
+    ~ ./nescala
 
 ### Controls
 
@@ -48,3 +54,4 @@ The following mappers have been implemented:
 ### Known Issues
 
 * APU emulation needs attention in regards to timing and DMA
+* Keyboard input controls can hang on occasion

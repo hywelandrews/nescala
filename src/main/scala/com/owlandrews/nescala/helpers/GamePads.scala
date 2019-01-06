@@ -40,6 +40,32 @@ class DefaultGamePad(controller:LWJGLController) extends GamePad {
   override def isBTurboButtonPressed: Boolean =  controller.isButtonPressed(buttons(9))
 }
 
+class UsbGamePad(controller:LWJGLController) extends GamePad {
+  private val buttons: Map[Int, Int] = Map(
+    0 -> 4,
+    1 -> 2,
+    2 -> 9,
+    3 -> 0,
+    4 -> 4,
+    5 -> 5,
+    6 -> 6,
+    7 -> 7,
+    8 -> 8,
+    9 -> 3
+  )
+
+  override def isAButtonPressed: Boolean = controller.isButtonPressed(buttons(0))
+  override def isBButtonPressed: Boolean = controller.isButtonPressed(buttons(1))
+  override def isStartButtonPressed: Boolean = controller.isButtonPressed(buttons(2))
+  override def isSelectButtonPressed: Boolean =  controller.isButtonPressed(buttons(3))
+  override def isUpButtonPressed: Boolean =  controller.getAxisValue(1) < -0.5
+  override def isDownButtonPressed: Boolean = controller.getAxisValue(1) > 0.5
+  override def isLeftButtonPressed: Boolean =  controller.getAxisValue(0) < -0.5
+  override def isRightButtonPressed: Boolean =  controller.getAxisValue(0) > 0.5
+  override def isATurboButtonPressed: Boolean =  controller.isButtonPressed(buttons(8))
+  override def isBTurboButtonPressed: Boolean =  controller.isButtonPressed(buttons(9))
+}
+
 class XBoxGamePad(controller:LWJGLController) extends GamePad {
   private val buttons: Map[Int, Int] = Map(
     0 -> 11,
@@ -53,6 +79,7 @@ class XBoxGamePad(controller:LWJGLController) extends GamePad {
     8 -> 13,
     9 -> 14
   )
+
   override def isAButtonPressed: Boolean = controller.isButtonPressed(buttons(0))
   override def isBButtonPressed: Boolean = controller.isButtonPressed(buttons(1))
   override def isStartButtonPressed: Boolean = controller.isButtonPressed(buttons(2))
@@ -91,9 +118,10 @@ class PS4GamePad(controller:LWJGLController) extends GamePad {
 }
 
 object GamePad {
-  def apply(controller:LWJGLController):GamePad = controller.getName match {
+  def apply(controller:LWJGLController):GamePad = controller.getName.trim match {
       case "Wireless 360 Controller" => new XBoxGamePad(controller)
       case "Wireless Controller"     => new PS4GamePad(controller)
+      case "usb gamepad"             => new UsbGamePad(controller)
       case _ => new DefaultGamePad(controller)
   }
 }

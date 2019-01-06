@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+#VERSION=$(sbt version | tail -1 | cut -d "]" -f 2 | tr -d "[:blank:]")
+VERSION=$(sed -n 's/^version := //p' version.sbt | tr -d '"')
+echo "Packaging nescala ${VERSION}"
+APP_DIR="nescala-${VERSION}"
+JAR_FILE="nescala-assembly-${VERSION}.jar"
+ZIP_FILE="nescala-${VERSION}.zip"
+mkdir $APP_DIR
+cp -R "target/scala-2.12/${JAR_FILE}" ./nescala libs/ $APP_DIR
+mv "$APP_DIR/${JAR_FILE}" "$APP_DIR/nescala-assembly.jar"
+zip -r $ZIP_FILE $APP_DIR -x "*.DS_Store"  
+rm -r $APP_DIR
