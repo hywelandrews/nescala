@@ -9,7 +9,7 @@ case class Mapper23(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array
   private var microWireLatch = 0
   private val chrOffsets = Array.fill[Int](8)(0)
 
-  val isMicroWire: Int => Boolean = x => x >= 0x6000
+  private val isMicroWire: Int => Boolean = x => x >= 0x6000
 
   private var mirrorMode = mirror
 

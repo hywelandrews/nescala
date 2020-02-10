@@ -30,7 +30,7 @@ object Run extends SimpleSwingApplication {
     director.Menu()
   }
 
-  lazy val top = new MainFrame {
+  lazy val top: MainFrame = new MainFrame {
     title = s"${BuildInfo.name} ${BuildInfo.version}"
     minimumSize = new Dimension(256, 240)
     maximumSize = new Dimension(maximumWidth, 960)

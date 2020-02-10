@@ -12,28 +12,28 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
 
   override def Read(address:Int): Int =  address as uShort match {
     case chr if isChr(address) =>
-      val bank = address / 0x0400
-      val offset = address % 0x0400
+      val bank = chr / 0x0400
+      val offset = chr % 0x0400
       chrRom(chrOffsets(bank) + offset)
     case prg1 if isPrg1(address) =>
-      val baseAddress = (address - 0x8000) as uShort
+      val baseAddress = (prg1 - 0x8000) as uShort
       val bank = baseAddress / 0x2000
       val offset = baseAddress % 0x2000
       prgRom(prgOffsets(bank) + offset)
     case saveRam if address >= 0x6000 =>
-      val index = (address - 0x6000) as uShort
+      val index = (saveRam - 0x6000) as uShort
       sRam(index)
     case default => System.err.println(s"Unhandled mapper4 write at address: ${Integer.toHexString(default)}"); 0
   }
 
   override def Write(address: Int, value: Int): Unit = address as uShort match {
     case chr if isChr(address) =>
-      val bank = address / 0x0400
-      val offset = address % 0x0400
+      val bank = chr / 0x0400
+      val offset = chr % 0x0400
       chrRom(chrOffsets(bank) + offset) = value
-    case prg1 if isPrg1(address) => writeRegister(address, value)
+    case prg1 if isPrg1(address) => writeRegister(prg1, value)
     case saveRam if isSRam(address) =>
-      val index = (address - 0x6000)  as uShort
+      val index = (saveRam - 0x6000)  as uShort
       sRam(index) = value
     case default => System.err.println(s"Unhandled mapper4 read at address: ${Integer.toHexString(default)}"); throw new Exception
   }
@@ -41,14 +41,14 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
   override def Mirror: Int = mirrorMode
 
   private def writeRegister(address:Int, value:Int) = address match {
-    case bankSelect if address <= 0x9FFF && address % 2 == 0 => writeBankSelect(value)
-    case bankData   if address <= 0x9FFF && address % 2 == 1 => writeBankData(value)
-    case setMirror  if address <= 0xBFFF && address % 2 == 0 => writeMirror(value)
-    case protect    if address <= 0xBFFF && address % 2 == 1 => writeProtect(value)
-    case irqLatch   if address <= 0xDFFF && address % 2 == 0 => writeIRQLatch(value)
-    case reloadIrq  if address <= 0xDFFF && address % 2 == 1 => writeIRQReload(value)
-    case disableIrq if address <= 0xFFFF && address % 2 == 0 => writeIRQDisable(value)
-    case enableIrq  if address <= 0xFFFF && address % 2 == 1 => writeIRQEnable(value)
+    case _ if address <= 0x9FFF && address % 2 == 0 => writeBankSelect(value)
+    case _ if address <= 0x9FFF && address % 2 == 1 => writeBankData(value)
+    case _ if address <= 0xBFFF && address % 2 == 0 => writeMirror(value)
+    case _ if address <= 0xBFFF && address % 2 == 1 => writeProtect(value)
+    case _ if address <= 0xDFFF && address % 2 == 0 => writeIRQLatch(value)
+    case _ if address <= 0xDFFF && address % 2 == 1 => writeIRQReload(value)
+    case _ if address <= 0xFFFF && address % 2 == 0 => writeIRQDisable(value)
+    case _ if address <= 0xFFFF && address % 2 == 1 => writeIRQEnable(value)
   }
 
   private def writeBankSelect(value:Int) = {
@@ -143,7 +143,6 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
     handleScanLine(triggerIRQHandler)
   }
 
-
   private def handleScanLine(triggerIRQHandler: => Unit) {
     if (counter == 0) counter = reload
     else {
@@ -151,4 +150,5 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
       if (counter == 0 && irqEnable) triggerIRQHandler
     }
   }
+
 }

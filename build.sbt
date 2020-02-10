@@ -16,7 +16,7 @@ lazy val root = (project in file(".")).
     mainClass in Compile := Some("com.owlandrews.nescala.ui.Run"),
     fork := true,
     scalacOptions ++= Seq("-feature", "-deprecation"),
-    javaOptions ++= Seq("-XX:UseSSE=3", "-Xms256m"),
+    javaOptions ++= Seq("-XX:UseSSE=3", "-Xms256m", "-XX:+UseParNewGC", "-XX:+UseConcMarkSweepGC", "-Xloggc:gc.log", "-XX:+PrintGCDetails", "-XX:+PrintGCApplicationStoppedTime", "-XX:+PrintGCApplicationConcurrentTime", "-XX:MetaspaceSize=32m"),
     javaOptions in (Compile, run) += "-Djava.library.path=libs/",
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "com.owlandrews.nescala"

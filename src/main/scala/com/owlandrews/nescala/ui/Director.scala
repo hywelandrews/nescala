@@ -54,7 +54,6 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel) {
     while (view.isDefined) {
       if (!pause) timestamp = step(timestamp)
       Display.update()
-      Display.sync(60)
     }
     Display.destroy()
   }

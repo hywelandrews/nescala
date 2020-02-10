@@ -1,6 +1,5 @@
 package com.owlandrews.nescala.ui
 
-import java.nio.{ByteBuffer, ByteOrder}
 import javax.sound.sampled._
 
 import scala.util.Try
@@ -18,7 +17,7 @@ object Audio {
   )
 
   private val samplesPerFrame = Math.ceil((sampleRate * 2) / 60F).toInt
-  private val buffer = new scala.collection.mutable.ArrayBuffer[Byte](samplesPerFrame * 2)
+  private val buffer = new scala.collection.mutable.ArrayBuffer[Byte](samplesPerFrame)
 
   private val output = Try {
     val sdl = AudioSystem.getSourceDataLine(format)
@@ -30,19 +29,30 @@ object Audio {
 
   def stop() = output.foreach(x => x.stop())
 
-  def receive(sample:Int) = {
-    val outputVolume = (sample * 0.799987793).toInt
+  def receive(sample:Int): Unit = {
+    val outputVolume = sample * 0.799987793F
 
     val outputSample = if (outputVolume < -32768) -32768
-                       else if (outputVolume > 32767) 32767
-                       else outputVolume
+                         else if (outputVolume > 32767) 32767
+                         else outputVolume
 
-    val channel = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(outputSample).array()
+    //left ch//left ch
 
-    buffer ++= Array(channel(0),channel(1),channel(0), channel(1))
+    0
+    val lch = outputSample.toInt
+    val o1 = (lch & 0xff).toByte
+    val o2  = ((lch >> 8) & 0xff).toByte
+    //right ch
+    val rch = outputSample.toInt
+    val o3  = (rch & 0xff).toByte
+    val o4 = ((rch >> 8) & 0xff).toByte
 
-    output.filter(_.available() >= buffer.length).foreach{ sdl =>
-      sdl.write(buffer.toArray, 0, buffer.length)
+    buffer ++= Array(o1, o2, o3, o4)
+
+    output.foreach{sdl =>
+     if(sdl.available() >= buffer.length) {
+       sdl.write(buffer.toArray, 0, buffer.size)
+     }
       buffer.clear()
     }
   }

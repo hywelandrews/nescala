@@ -4,7 +4,7 @@ trait Mapper {
   def Mirror:Int
   def Read(address:Int): Int
   def Write(address:Int, value: Int)
-  def Step(ppuCycle:Long, ppuScanLine:Long, ppuFlagShowBackground:Int, ppuFlagShowSprites:Int, flagSpriteSize:Int, triggerIRQHandler: => Unit) : Unit = ()
+  def Step(ppuCycle:Long, ppuScanLine:Long, ppuFlagShowBackground:Int, ppuFlagShowSprites:Int, flagSpriteSize:Int, triggerIRQ: => Unit) : Unit = ()
   val sRamAddress = 0x6000
   val isChr: Int => Boolean = x => x < 0x2000
   val isPrg1: Int => Boolean = x => x >= 0x8000

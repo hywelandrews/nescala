@@ -4,7 +4,7 @@ case class APU(channel: (Int) => Unit) {
 
   var DMAStall = false
   private var cycle = 0L
-  private val frameCounterRate = CPU.frequency / 240
+  private val frameCounterRate = CPU.frequency / 240.0
   private val sampleRate = CPU.frequency / 44100.0
   private val filterChain = FilterChain(44100)
   private case class Length(var enabled:Boolean = false, var value:Int = 0,
@@ -116,8 +116,8 @@ case class APU(channel: (Int) => Unit) {
       if (timer.period < 8 || timer.period > 0x7FF) return 0
       // if (!sweepNegate && timerPeriod + (timerPeriod >>> sweepShift) > 0x7FF) return 0
 
-      if (envelope.enabled) envelope.volume
-      else constantVolume
+      if (envelope.enabled) envelope.volume as uByte
+      else constantVolume as uByte
     }
   }
 
@@ -139,7 +139,7 @@ case class APU(channel: (Int) => Unit) {
     def writeTimerLow(value:Int) = timer.period = (timer.period & 0xFF00) | (value as uShort)
 
     def writeTimerHigh(value:Int) = {
-      if(enabled) length.value = length.table(value >>> 3)
+      length.value = length.table(value >>> 3)
       timer.period = (timer.period & 0x00FF) | (((value & 7) as uShort) << 8)
       timer.value = timer.period
       counterReload = true
@@ -153,15 +153,17 @@ case class APU(channel: (Int) => Unit) {
     def stepLength() = if (length.enabled && length.value > 0) length.value = (length.value - 1) as uByte
 
     def stepCounter() = {
-	    if (counterReload) counterValue = counterPeriod else if (counterValue > 0) counterValue = (counterValue - 1) as uByte
-	    if (length.enabled) counterReload = false
+	    if (counterReload) counterValue = counterPeriod
+      else if (counterValue > 0) counterValue = (counterValue - 1) as uByte
+
+      if (length.enabled) counterReload = false
     }
 
     def output():Int = {
       if (!enabled) return 0
       if (length.value == 0) return 0
       if (counterValue == 0) return 0
-      triangle.table(duty.value)
+      triangle.table(duty.value) as uByte
     }
   }
 
@@ -175,10 +177,10 @@ case class APU(channel: (Int) => Unit) {
     private val table = Array(4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068)
 
     def writeControl(value:Int) = {
-      length.enabled = ((value >>> 5) & 1) == 0
-      envelope.loop = ((value >>> 5) & 1) == 1
-      envelope.enabled = ((value >>> 4) & 1) == 0
-      envelope.period = value & 15
+      length.enabled = ((value >> 5) & 1) == 0
+      envelope.loop = ((value >> 5) & 1) == 1
+      envelope.enabled = ((value >> 4) & 1) == 0
+      envelope.period = (value & 15) as uByte
       constantVolume = (value & 15) as uByte
       envelope.start = true
     }
@@ -189,7 +191,7 @@ case class APU(channel: (Int) => Unit) {
     }
 
     def writeLength(value:Int) = {
-      if(enabled) length.value = length.table(value >>> 3)
+      if(enabled) length.value = length.table(value >> 3)
       envelope.start = true
     }
 
@@ -198,8 +200,8 @@ case class APU(channel: (Int) => Unit) {
         timer.value = timer.period
         val shift = if (mode) 6 else 1
         val b1 = shiftRegister & 1
-        val b2 = (shiftRegister >>> shift) & 1
-        shiftRegister = (shiftRegister >>> 1) as uShort
+        val b2 = (((shiftRegister >> shift)) as uShort) & 1
+        shiftRegister = (shiftRegister >> 1) as uShort
         shiftRegister = shiftRegister | (((b1 ^ b2) << 14) as uShort)
       } else timer.value = (timer.value - 1) as uShort
     }
@@ -346,7 +348,9 @@ case class APU(channel: (Int) => Unit) {
     val f1 = (cycle1 / frameCounterRate).toInt
     val f2 = (cycle2 / frameCounterRate).toInt
 
-    if (f1 != f2) stepFrameCounter(fireIRQHandler)
+    if (f1 != f2) {
+      stepFrameCounter(fireIRQHandler)
+    }
 
     val s1 = (cycle1 / sampleRate).toInt
     val s2 = (cycle2 / sampleRate).toInt
@@ -354,7 +358,9 @@ case class APU(channel: (Int) => Unit) {
     if (s1 != s2) sendSample()
   }
 
-  def sendSample() = channel(filterChain.Step(output()))
+  def sendSample() =  channel(filterChain.Step(output()))
+
+  var on = false
 
   def output(): Int = {
     val p1 = pulse1.output()
@@ -441,15 +447,15 @@ case class APU(channel: (Int) => Unit) {
       case 5 =>
         frameValue = ((frameValue + 1) as uByte) % 5
         frameValue match {
-          case 1 | 3 =>
-            stepEnvelope()
           case 0 | 2 =>
+            stepEnvelope()
+          case 1 | 3 =>
             stepEnvelope()
             stepSweep()
             stepLength()
-          case default =>
+          case _ =>
       }
-      case default =>
+      case _ =>
    }
 
   def stepEnvelope() = {

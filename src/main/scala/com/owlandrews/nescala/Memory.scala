@@ -11,7 +11,7 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
   private val isPpu2: Int => Boolean = x => x == 0x4014
   private val isApu1: Int => Boolean = x => x < 0x4014
   private val isApu2: Int => Boolean = x => x == 0x4015
-  private val isController1: Int => Boolean = x => x == 0x4016
+  private val isController: Int => Boolean = x => x == 0x4016
   private val isMapper: Int => Boolean = x => x >= 0x6000
 
   override def Read(address: Int): Int = address match {
@@ -19,7 +19,7 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
     case ppuAddress if isPpu1(address)  => ppu.ReadRegister(0x2000 + ppuAddress % 8)
     case ppuAddress if isPpu2(address)  => ppu.ReadRegister(ppuAddress)
     case apuAddress if isApu2(address)  => apu.ReadRegister(apuAddress)
-    case controller1Address if isController1(address) => controller1.Read()
+    case controller1Address if isController(address) => controller1.Read()
     case controller2Address if address == 0x4017 => controller2.Read()
     //case ioAddress if address < 0x6000 => // TODO: I/O registers
     case mapperAddress if isMapper(address) => mapper.Read(mapperAddress)
@@ -32,8 +32,8 @@ case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, c
       case apuAddress if isApu1(address) => apu.WriteRegister(apuAddress, value)
       case ppuAddress if isPpu2(address) => ppu.WriteRegister(ppuAddress, value, this.Read)
       case apuAddress if isApu2(address)  => apu.WriteRegister(apuAddress, value)
-      case controller1Address if isController1(address)  => controller1.Write(value)
-      case controller2Address if address == 0x4017 => controller2.Write(value)
+      case controller1Address if isController(address)  => controller1.Write(value)
+                                                           controller2.Write(value)
       case apuAddress if address == 0x4017 => apu.WriteRegister(apuAddress, value)
       //case ioAddress if address < 0x6000 => // TODO: I/O registers
       case mapperAddress if isMapper(address)  => mapper.Write(address, value)

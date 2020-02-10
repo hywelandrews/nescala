@@ -34,39 +34,39 @@ final case class Cartridge(private val path:String) {
 
   lazy val Header = iNesHeader(rom.take(headerSize))
 
-  lazy val CRC = new CRC32() {
+  lazy val CRC: String = new CRC32() {
     update(rom.map(_.toByte).takeRight(rom.length - headerSize))
   }.getValue.toHexString.toUpperCase
 
-  lazy val Mapper = (Header.Control2 & 0xF0) | (Header.Control1 >>> 4)
+  lazy val Mapper: Int = (Header.Control2 & 0xF0) | (Header.Control1 >>> 4)
 
-  lazy val Mirror = (Header.Control1 & 1)  | (((Header.Control1 >>> 3) & 1) << 1)
+  lazy val Mirror: Int = (Header.Control1 & 1)  | (((Header.Control1 >>> 3) & 1) << 1)
 
-  lazy val Battery = (Header.Control1 >>> 1) & 1
+  lazy val Battery: Int = (Header.Control1 >>> 1) & 1
 
-  lazy val HasTrainer = (Header.Control1 & 4) == 4
+  lazy val HasTrainer: Boolean = (Header.Control1 & 4) == 4
 
   private def getCurrentOffset(i:Int = 0) = {
     val base = if (HasTrainer) headerSize + trainerSize else headerSize
     base + i
   }
 
-  lazy val Trainer = if(HasTrainer) {
+  lazy val Trainer: Array[Int] = if(HasTrainer) {
     rom.slice(headerSize, getCurrentOffset())
   } else Array.fill(trainerSize){0}
 
   private val prgOffset = Header.NumPRG * prgRomSize
 
-  lazy val PrgRom = rom.slice(getCurrentOffset(), getCurrentOffset(prgOffset))
+  lazy val PrgRom: Array[Int] = rom.slice(getCurrentOffset(), getCurrentOffset(prgOffset))
 
   private val chrOffset = Header.NumCHR * chrRomSize
 
-  lazy val ChrRom = if (Header.NumCHR == 0) Array.fill(chrRomSize){0}
+  lazy val ChrRom: Array[Int] = if (Header.NumCHR == 0) Array.fill(chrRomSize){0}
                else rom.slice(getCurrentOffset(prgOffset), getCurrentOffset(prgOffset + chrOffset))
 
-  lazy val SRam = Array.fill[Int](0x2000)(0)
+  lazy val SRam: Array[Int] = Array.fill[Int](0x2000)(0)
 
-  override def toString =
+  override def toString: String =
     s"""CRC: $CRC
        |Mapper: $Mapper
        |Mirror: $Mirror
