@@ -25,7 +25,7 @@ object Run extends SimpleSwingApplication {
 
   UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
 
-  override def startup(args: Array[String]) = {
+  override def startup(args: Array[String]): Unit = {
     super.startup(args)
     director.Menu()
   }
@@ -41,7 +41,7 @@ object Run extends SimpleSwingApplication {
     peer.add(gameMenu.peer, java.awt.BorderLayout.SOUTH)
     pack()
 
-    override def closeOperation() {
+    override def closeOperation(): Unit = {
       Settings.close()
       super.closeOperation()
     }
@@ -78,10 +78,10 @@ object Run extends SimpleSwingApplication {
 
   private val consoleControlNames = List("eject", "reload", "play", "pause")
 
-  private def enableConsoleControls() =
+  private def enableConsoleControls(): Unit =
     gameMenu.contents.filter(x => consoleControlNames.contains(x.name)).foreach(_.enabled = true)
 
-  private def disableConsoleControls() =
+  private def disableConsoleControls(): Unit =
     gameMenu.contents.filter(x => consoleControlNames.contains(x.name)).foreach(_.enabled = false)
 
   private def gameMenuIcon(path:String, gameAction: Action, active: Boolean = false) = new Button {
@@ -100,25 +100,25 @@ object Run extends SimpleSwingApplication {
     background = mediumGrey
   }
 
-  private lazy val gameCanvas = new Canvas {
+  private lazy val gameCanvas: Canvas = new Canvas {
     setSize(initialWindowSize)
     setFocusable(true)
     setIgnoreRepaint(true)
 
-    override def addNotify() = {
+    override def addNotify(): Unit = {
       super.addNotify()
       gameThread = filePath.map{ path => attachDisplay(this, path)}
       gameThread.foreach(t => t.start())
       filePath = None
     }
 
-    override def removeNotify() = {
+    override def removeNotify(): Unit = {
       detachDisplay()
       super.removeNotify()
     }
 
-    def attachDisplay(frame: Canvas, path:String) = new Thread {
-         override def run() = {
+    def attachDisplay(frame: Canvas, path:String): Thread = new Thread {
+         override def run(): Unit = {
             try {
               Display.setParent(frame)
               Display.create()
@@ -135,7 +135,7 @@ object Run extends SimpleSwingApplication {
     }
   }
 
-  def StepFrame(image:Image) = {
+  def StepFrame(image:Image): Unit = {
     val panel = new JPanel()
     panel.add(new JLabel(new ImageIcon(image)))
 
@@ -143,7 +143,7 @@ object Run extends SimpleSwingApplication {
     JOptionPane.showMessageDialog(null, scrollPane)
   }
 
-  def Eject() = {
+  def Eject(): Unit = {
     director.Save()
 
     top.peer.remove(gameCanvas)
@@ -158,7 +158,7 @@ object Run extends SimpleSwingApplication {
     director.Menu()
   }
 
-  def StartDisplay(path:String) = {
+  def StartDisplay(path:String): Unit = {
     filePath = Some(path)
 
     top.peer.remove(scrollWrapper.peer)
@@ -186,7 +186,7 @@ object Run extends SimpleSwingApplication {
     override def keyReleased(e: KeyEvent): Unit =  {}
   }
 
-  def OpenFolderDialog() = {
+  def OpenFolderDialog(): Unit = {
     val fileChooser = new FileChooser(){
       title = "Select Game Library"
       fileSelectionMode = FileChooser.SelectionMode.DirectoriesOnly

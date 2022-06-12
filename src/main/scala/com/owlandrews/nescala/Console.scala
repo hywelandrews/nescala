@@ -1,10 +1,10 @@
 package com.owlandrews.nescala
 
 import java.io.PrintWriter
-
 import com.owlandrews.nescala.helpers.File
 import com.owlandrews.nescala.ui.Audio
 
+import java.awt.image.BufferedImage
 import scala.annotation.tailrec
 
 final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mapper:Mapper, val ppu:PPU, apu:APU, val controller1:Controller, val controller2:Controller) extends Serializable {
@@ -34,7 +34,7 @@ final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mappe
     while (cycles > 0) cycles = cycles - Step()
   }
 
-  def VideoBuffer() = ppu.Front
+  def VideoBuffer(): BufferedImage = ppu.Front
 
   @tailrec
   def Run():Unit = {
@@ -54,7 +54,7 @@ final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mappe
     Run(printWriter)
   }
 
-  def Reset() {
+  def Reset(): Unit = {
     cpu.Reset()
     ppu.Reset()
   }
@@ -63,10 +63,9 @@ final class Console(val cartridge:Cartridge, val cpu: CPU, ram:Array[Int], mappe
 object Console
 {
 
-  lazy val application = BuildInfo.name
+  lazy val application: String = BuildInfo.name
 
-  def main(args: Array[String])
-  {
+  def main(args: Array[String]): Unit = {
     if (args.length != 1) {
       System.err.println(s"Usage: $application file")
       System.exit(1)
@@ -78,7 +77,7 @@ object Console
     start(console)
   }
 
-  def start(console:Console) = {
+  def start(console:Console): Unit = {
     println("s: Step into CPU r: Run l: Log output of CPU to file q: Quit")
 
     while (true) scala.Console.in.readLine() match {

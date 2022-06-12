@@ -20,9 +20,9 @@ class WrapPanel(defaultWidth: Int, alignment: FlowPanel.Alignment.Value)(content
   private def layoutManager = peer.getLayout.asInstanceOf[WrapLayout]
 
   def vGap: Int = layoutManager.getVgap
-  def vGap_=(n: Int) { layoutManager.setVgap(n) }
+  def vGap_=(n: Int): Unit = { layoutManager.setVgap(n) }
   def hGap: Int = layoutManager.getHgap
-  def hGap_=(n: Int) { layoutManager.setHgap(n) }
+  def hGap_=(n: Int): Unit = { layoutManager.setHgap(n) }
 }
 
 class WrapLayout(defaultWidth: Int, align: Int = FlowLayout.CENTER, hgap: Int = 5, vgap: Int = 5)
@@ -66,7 +66,7 @@ class WrapLayout(defaultWidth: Int, align: Int = FlowLayout.CENTER, hgap: Int = 
     dim
   }
 
-  private def addRow(dim: Dimension, rowWidth: Int, rowHeight: Int) {
+  private def addRow(dim: Dimension, rowWidth: Int, rowHeight: Int): Unit = {
     dim.width = Math.max(dim.width, rowWidth)
     if (dim.height > 0)
       dim.height += getVgap

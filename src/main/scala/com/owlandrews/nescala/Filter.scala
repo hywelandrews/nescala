@@ -12,7 +12,7 @@ case class FirstOrderFilter(B0:Float, B1:Float, A1:Float) extends Filter {
   def Step(x:Int):Int = {
     val y = (B0 * x) + (B1 * prevX) - (A1 * prevY)
     prevY = y
-    prevX = x
+    prevX = x.toFloat
     y.toInt
   }
 }
@@ -24,7 +24,7 @@ case class FilterChain(filters:List[Filter]){
 object FilterChain {
   def apply(sampleRate:Int):FilterChain = sampleRate match {
     case 0 => FilterChain(List.empty[Filter])
-    case _ => FilterChain(initializeFilters(sampleRate))
+    case _ => FilterChain(initializeFilters(sampleRate.toFloat))
   }
 
   private def initializeFilters(sampleRate:Float) =

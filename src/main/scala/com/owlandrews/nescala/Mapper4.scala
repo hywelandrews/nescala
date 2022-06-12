@@ -40,7 +40,7 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
 
   override def Mirror: Int = mirrorMode
 
-  private def writeRegister(address:Int, value:Int) = address match {
+  private def writeRegister(address:Int, value:Int): Unit = address match {
     case _ if address <= 0x9FFF && address % 2 == 0 => writeBankSelect(value)
     case _ if address <= 0x9FFF && address % 2 == 1 => writeBankData(value)
     case _ if address <= 0xBFFF && address % 2 == 0 => writeMirror(value)
@@ -51,32 +51,32 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
     case _ if address <= 0xFFFF && address % 2 == 1 => writeIRQEnable(value)
   }
 
-  private def writeBankSelect(value:Int) = {
+  private def writeBankSelect(value:Int): Unit = {
     prgMode = (value >> 6) & 1
     chrMode = (value >> 7) & 1
     register = value & 7
     updateOffsets()
   }
 
-  private def writeBankData(value:Int) = {
+  private def writeBankData(value:Int): Unit = {
     registers(register) = value
     updateOffsets()
   }
 
-  private def writeMirror(value:Int) = value & 1 match {
+  private def writeMirror(value:Int): Unit = value & 1 match {
     case 0 => mirrorMode = MirrorMode.Vertical
     case 1 => mirrorMode = MirrorMode.Horizontal
   }
 
-  private def writeProtect(value:Int) = ()
+  private def writeProtect(value:Int): Unit = ()
 
-  private def writeIRQLatch(value:Int) = reload = value
+  private def writeIRQLatch(value:Int): Unit = reload = value
 
-  private def writeIRQReload(value:Int) = counter = 0
+  private def writeIRQReload(value:Int): Unit = counter = 0
 
-  private def writeIRQDisable(value:Int) = irqEnable = false
+  private def writeIRQDisable(value:Int): Unit = irqEnable = false
 
-  private def writeIRQEnable(value:Int) = irqEnable = true
+  private def writeIRQEnable(value:Int): Unit = irqEnable = true
 
   private def chrBankOffset(index: Int): Int = {
     val bankLength = chrRom.length
@@ -98,7 +98,7 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
 
   private def findOffset(index: Int, bankLength: Int, size: Int) = (index % (bankLength / size)) * size
 
-  private def updateOffsets() = {
+  private def updateOffsets(): Unit = {
 
     prgMode match {
       case 0 =>
@@ -143,7 +143,7 @@ case class Mapper4(mirror:Int, chrRom:Array[Int], prgRom:Array[Int], sRam:Array[
     handleScanLine(triggerIRQHandler)
   }
 
-  private def handleScanLine(triggerIRQHandler: => Unit) {
+  private def handleScanLine(triggerIRQHandler: => Unit): Unit = {
     if (counter == 0) counter = reload
     else {
       counter = (counter - 1) as uByte

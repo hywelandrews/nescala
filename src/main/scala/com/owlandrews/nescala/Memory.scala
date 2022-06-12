@@ -2,7 +2,7 @@ package com.owlandrews.nescala
 
 trait Memory {
     def Read(address:Int):Int
-    def Write(address:Int, value:Int)
+    def Write(address:Int, value:Int): Unit
 }
 
 case class CPUMemory(ram:Array[Int], ppu:PPU, apu:APU, controller1:Controller, controller2:Controller, mapper:Mapper) extends Memory {
@@ -56,7 +56,7 @@ trait PPUMemory extends Memory { self:PPU =>
     case default => System.err.println(s"unhandled ppu memory read at address: ${Integer.toHexString(default)}"); 0
   }
 
-  override def Write(address: Int, value: Int) = address % 0x4000 match {
+  override def Write(address: Int, value: Int): Unit = address % 0x4000 match {
       case mapperAddress if mapperAddress < 0x2000 => mapper.Write(mapperAddress, value)
       case ppuNameTable if ppuNameTable < 0x3F00 => nameTableData(mirrorAddress(mapper.Mirror, ppuNameTable) % 2048) = value
       case ppuPalette if ppuPalette < 0x4000 => WritePalette(ppuPalette % 32, value)
@@ -84,7 +84,7 @@ trait PPUMemory extends Memory { self:PPU =>
     paletteData(paletteAddress)
   }
 
-  def WritePalette(address:Int, value:Int) = {
+  def WritePalette(address:Int, value:Int): Unit = {
     if ((address >= 16) && (address % 4 == 0)) paletteData((address - 16) as uShort) = value as uByte
     else paletteData(address) = value as uByte
   }

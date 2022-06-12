@@ -188,7 +188,7 @@ case class CPU(memory:CPUMemory) {
   }
 
   // SetFlags sets the processor status flags
-  private def setFlags(flags:Int) = {
+  private def setFlags(flags:Int): Unit = {
     registers.c = (flags >>> 0) & 1
     registers.z = (flags >>> 1) & 1
     registers.i = (flags >>> 2) & 1
@@ -199,7 +199,7 @@ case class CPU(memory:CPUMemory) {
     registers.n = (flags >>> 7) & 1
   }
   // NMI - Non-Maskable Interrupt
-  private def nmi() {
+  private def nmi(): Unit = {
     push16(registers.pc)
     php(0,0,0)
     registers.pc = read16(0xFFFA)
@@ -208,7 +208,7 @@ case class CPU(memory:CPUMemory) {
   }
 
   // IRQ - IRQ Interrupt
-  private def irq() {
+  private def irq(): Unit = {
     push16(registers.pc)
     php(0,0,0)
     registers.pc = read16(0xFFFE)

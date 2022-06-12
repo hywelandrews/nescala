@@ -9,6 +9,7 @@ import org.lwjgl.input.{Controllers => LWJGLControllers}
 import org.lwjgl.opengl.GL11
 
 import scala.language.postfixOps
+import scala.collection.parallel.CollectionConverters._
 import scala.swing.event._
 import scala.swing.{Button, Action, Alignment}
 import com.owlandrews.nescala.helpers._
@@ -16,11 +17,11 @@ import com.owlandrews.nescala.{Cartridge, Console, Controller}
 
 
 trait View {
-  def Open()
-  def Close()
-  def Reset()
-  def Update(dt:Double)
-  def Save()
+  def Open(): Unit
+  def Close(): Unit
+  def Reset(): Unit
+  def Update(dt:Double): Unit
+  def Save(): Unit
 }
 
 case class GameView(console:Console, window: Canvas) extends View {
@@ -75,7 +76,7 @@ case class GameView(console:Console, window: Canvas) extends View {
 
   override def Save(): Unit = File.SaveState(console)
 
-  private def drawBuffer() {
+  private def drawBuffer(): Unit = {
     val frameBounds = window.getBounds
     val h = frameBounds.height
     val w = frameBounds.width
@@ -89,13 +90,13 @@ case class GameView(console:Console, window: Canvas) extends View {
 
     GL11.glBegin(GL11.GL_QUADS)
     GL11.glTexCoord2f(0, 1)
-    GL11.glVertex2f(-x, -y)
+    GL11.glVertex2f(-x.toFloat, -y.toFloat)
     GL11.glTexCoord2f(1, 1)
-    GL11.glVertex2f(x, -y)
+    GL11.glVertex2f(x.toFloat, -y.toFloat)
     GL11.glTexCoord2f(1, 0)
-    GL11.glVertex2f(x, y)
+    GL11.glVertex2f(x.toFloat, y.toFloat)
     GL11.glTexCoord2f(0, 0)
-    GL11.glVertex2f(-x, y)
+    GL11.glVertex2f(-x.toFloat, y.toFloat)
     GL11.glEnd()
   }
 

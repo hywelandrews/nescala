@@ -7,10 +7,9 @@ import java.awt.image.BufferedImage
 import java.awt._
 
 import scala.swing.Graphics2D
-import scala.swing._
 
 class Thumbnail(color: Color) {
-  def Resize(image:Image) = {
+  def Resize(image:Image): BufferedImage = {
     val thumbnail = image.getScaledInstance(Thumbnail.x, Thumbnail.y, Image.SCALE_SMOOTH)
     val arcs = new Dimension(10, 10)
     val output = new BufferedImage(Thumbnail.x,  Thumbnail.y, BufferedImage.TYPE_INT_ARGB)
@@ -18,7 +17,7 @@ class Thumbnail(color: Color) {
     outputGraphics.setComposite(AlphaComposite.Src)
     outputGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
     outputGraphics.setColor(color)
-    outputGraphics.fill(new RoundRectangle2D.Float(0, 0, Thumbnail.x,  Thumbnail.y, arcs.width, arcs.height))
+    outputGraphics.fill(new RoundRectangle2D.Float(0, 0, Thumbnail.x.toFloat,  Thumbnail.y.toFloat, arcs.width.toFloat, arcs.height.toFloat))
     outputGraphics.setComposite(AlphaComposite.SrcAtop)
     outputGraphics.drawImage(thumbnail, 0, 0, null)
     outputGraphics.dispose()

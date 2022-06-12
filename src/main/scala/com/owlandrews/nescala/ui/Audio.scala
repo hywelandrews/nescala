@@ -37,8 +37,6 @@ object Audio {
                          else outputVolume
 
     //left ch//left ch
-
-    0
     val lch = outputSample.toInt
     val o1 = (lch & 0xff).toByte
     val o2  = ((lch >> 8) & 0xff).toByte

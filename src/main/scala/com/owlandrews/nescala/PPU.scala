@@ -75,7 +75,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   // $2007 PPUDATA
   private var bufferedData = 0 // for buffered reads
 
-  def Reset() {
+  def Reset(): Unit = {
     cycle = 340
     scanLine = 240
     frame = 0
@@ -84,19 +84,19 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     writeOAMAddress(0)
   }
 
-  def ShowBackground = flagShowBackground
+  def ShowBackground: Int = flagShowBackground
 
-  def ShowSprites = flagShowSprites
+  def ShowSprites: Int = flagShowSprites
 
-  def ScanLine = scanLine
+  def ScanLine: Int = scanLine
 
-  def SpriteSize = flagSpriteSize
+  def SpriteSize: Int = flagSpriteSize
 
-  def Cycle = cycle
+  def Cycle: Int = cycle
 
-  def Frame = frame
+  def Frame: Long = frame
 
-  def Front = PPU.front
+  def Front: BufferedImage = PPU.front
 
 //  def ReInit = {
 //    front = new BufferedImage(256, 240, BufferedImage.TYPE_INT_RGB)
@@ -104,7 +104,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 //  }
 
   // $2000: PPUCTRL
-  private def writeControl(value: Int) = {
+  private def writeControl(value: Int): Unit = {
     flagNameTable = ((value >>> 0) & 3) as uByte
     flagIncrement = ((value >>> 2) & 1)  as uByte
     flagSpriteTable = ((value >>> 3) & 1) as uByte
@@ -118,7 +118,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   // $2001: PPUMASK
-  private def writeMask(value: Int) = {
+  private def writeMask(value: Int): Unit = {
     flagGrayscale = (value >>> 0) & 1
     flagShowLeftBackground = (value >>> 1) & 1
     flagShowLeftSprites = (value >>> 2) & 1
@@ -142,19 +142,19 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   // $2003: OAMADDR
-  private def writeOAMAddress(value: Int) = oamAddress = value
+  private def writeOAMAddress(value: Int): Unit = oamAddress = value
 
   // $2004: OAMDATA (read)
   private def readOAMData(): Int = oamData(oamAddress)
 
   // $2004: OAMDATA (write)
-  private def writeOAMData(value: Int) = {
+  private def writeOAMData(value: Int): Unit = {
     oamData(oamAddress) = value
     oamAddress = (oamAddress + 1) as uByte
   }
 
   // $2005: PPUSCROLL
-  private def writeScroll(value: Int) = {
+  private def writeScroll(value: Int): Unit = {
     if (writeToggle == 0) {
       // tempVramAddress: ........ ...HGFED = d: HGFED...
       // fineX:               CBA = d: .....CBA
@@ -172,7 +172,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   // $2006: PPUADDR
-  private def writeAddress(value: Int) = {
+  private def writeAddress(value: Int): Unit = {
     if (writeToggle == 0) {
       // tempVramAddress: ..FEDCBA ........ = d: ..FEDCBA
       // tempVramAddress: .X...... ........ = 0
@@ -206,13 +206,13 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
   }
 
   // $2007: PPUDATA (write)
-  private def writeData(value: Int) = {
+  private def writeData(value: Int): Unit = {
     Write(vramAddress, value)
     vramAddress = (if (flagIncrement == 0) vramAddress + 1 else vramAddress + 32) as uShort
   }
 
   // $4014: OAMDMA
-  private def writeDMA(value: Int, dmaRead: Int => Int) = {
+  private def writeDMA(value: Int, dmaRead: Int => Int): Unit = {
     var address = (value << 8) as uShort
 
     for (i <- 0 to 255) {
@@ -224,7 +224,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     DMAStall = true
   }
 
-  private def nmiChange() = {
+  private def nmiChange(): Unit = {
     val nmi = nmiOutput && nmiOccurred
     if (nmi && !nmiPrevious) {
       // TODO: this fixes the odd game, but is incorrect
@@ -240,7 +240,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     case _ => 0
   }
 
-  def WriteRegister(address: Int, value: Int, dmaRead: Int => Int) = {
+  def WriteRegister(address: Int, value: Int, dmaRead: Int => Int): Unit = {
     register = value as uByte
     address match {
       case 0x2000   => writeControl(value)
@@ -303,7 +303,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     emptyPixel
   }
 
-  private def renderPixel() {
+  private def renderPixel(): Unit = {
     val x = cycle - 1
     val y = scanLine
     var background = backgroundPixel()
@@ -385,18 +385,18 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     }
   }
 
-  def fetchNameTableByte() {
+  def fetchNameTableByte(): Unit = {
     val address = (0x2000 | (vramAddress & 0x0FFF)) as uShort
     nameTableByte = Read(address)
   }
 
-  def fetchAttributeTableByte() {
+  def fetchAttributeTableByte(): Unit = {
     val address = (0x23C0 | (vramAddress & 0x0C00) | ((vramAddress >>> 4) & 0x38) | ((vramAddress >>> 2) & 0x07)) as uShort
     val shift = (((vramAddress >> 4) & 4) | (vramAddress & 2)) as uShort
     attributeTableByte = (((Read(address) >>> shift) & 3) << 2) as uByte
   }
 
-  def fetchLowTileByte() {
+  def fetchLowTileByte(): Unit = {
     val fineY = (vramAddress >> 12) & 7
     val table = flagBackgroundTable
     val tile = nameTableByte
@@ -404,7 +404,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     lowTileByte = Read(address)
   }
 
-  def fetchHighTileByte() {
+  def fetchHighTileByte(): Unit = {
     val fineY = (vramAddress >> 12) & 7
     val table = flagBackgroundTable
     val tile = nameTableByte
@@ -412,7 +412,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     highTileByte = Read((address + 8) as uShort)
   }
 
-  def storeTileData() {
+  def storeTileData(): Unit = {
     var data = 0L
     for (i <- 0 to 7) {
       val a = attributeTableByte
@@ -434,13 +434,13 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     (data & 0x0F).toInt as uByte
   }
 
-  def copyY() {
+  def copyY(): Unit = {
     // vert(vramAddress) = vert(tempVramAddress)
     // vramAddress: .IHGF.ED CBA..... = tempVramAddress: .IHGF.ED CBA.....
     vramAddress = ((vramAddress & 0x841F) | (tempVramAddress & 0x7BE0)) as uShort
   }
 
-  def incrementX() {
+  def incrementX(): Unit = {
     // increment hori(vramAddress)
     // if coarse X == 31
     if ((vramAddress & 0x001F) == 31) {
@@ -451,7 +451,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     } else vramAddress = (vramAddress + 1) as uShort
   }
 
-  def incrementY() {
+  def incrementY(): Unit = {
     // increment vert(vramAddress)
     // if fine Y < 7
     if ((vramAddress & 0x7000) != 0x7000) {
@@ -479,7 +479,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     }
   }
 
-  def copyX() {
+  def copyX(): Unit = {
     // hori(vramAddress) = hori(tempVramAddress)
     // vramAddress: .....F.. ...EDCBA = tempVramAddress: .....F.. ...EDCBA
     vramAddress = ((vramAddress & 0xFBE0) | (tempVramAddress & 0x041F)) as uShort
@@ -487,7 +487,7 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
 
   var isATransparentSprite = 0
 
-  def evaluateSprites() {
+  def evaluateSprites(): Unit = {
 
     val h = if (flagSpriteSize == 0) 8
             else 16
@@ -560,13 +560,13 @@ case class PPU(cartridge:Cartridge, mapper:Mapper) extends PPUMemory {
     data
   }
 
-  def setVerticalBlank() {
+  def setVerticalBlank(): Unit = {
     PPU.front.setData(PPU.back.getRaster)
     nmiOccurred = true
     nmiChange()
   }
 
-  def clearVerticalBlank() {
+  def clearVerticalBlank(): Unit = {
     nmiOccurred = false
     nmiChange()
   }

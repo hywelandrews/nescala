@@ -1,7 +1,6 @@
 package com.owlandrews.nescala.ui
 
-import java.awt.Canvas
-
+import java.awt.{Canvas, Container}
 import com.owlandrews.nescala.BuildInfo
 import org.lwjgl.opengl.{Display, GL11}
 
@@ -13,26 +12,26 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel) {
   private var view : Option[View] = None
   private var pause = false
 
-  def Menu() = setView(Some(MenuView(menuWindow)))
+  def Menu(): Unit = setView(Some(MenuView(menuWindow)))
 
-  def Reset() = view.foreach(_.Reset())
+  def Reset(): Unit = view.foreach(_.Reset())
 
-  def Close() = setView(None)
+  def Close(): Unit = setView(None)
 
-  def Pause() = pause = true
+  def Pause(): Unit = pause = true
 
-  def Resume() = pause = false
+  def Resume(): Unit = pause = false
 
-  def Save() = view.foreach(_.Save())
+  def Save(): Unit = view.foreach(_.Save())
 
-  def Start(path: String) = loadGameView(path) match {
+  def Start(path: String): Unit = loadGameView(path) match {
             case Success(_) => run()
-            case Failure(e) => Dialog.showMessage(new {def peer = gameWindow.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
+            case Failure(e) => Dialog.showMessage(new {def peer: Container = gameWindow.getParent}, e.getMessage, BuildInfo.name, Dialog.Message.Warning)
   }
 
   private def loadGameView(path: String) = Try(com.owlandrews.nescala.Console(path)).map(console => setView(Some(GameView(console, gameWindow))))
 
-  private def setView(view : Option[View]) {
+  private def setView(view : Option[View]): Unit = {
     this.view.foreach(_.Close())
     this.view = view
     this.view.foreach(_.Open())
@@ -49,7 +48,7 @@ case class Director(gameWindow : Canvas, menuWindow: WrapPanel) {
     nextTimeStamp
   }
 
-  private def run() = {
+  private def run(): Unit = {
     var timestamp = System.nanoTime()
     while (view.isDefined) {
       if (!pause) timestamp = step(timestamp)
